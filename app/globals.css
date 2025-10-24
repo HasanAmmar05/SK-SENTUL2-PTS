@@ -1,0 +1,506 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Consolidated CSS Variables from all HTML files */
+:root {
+  /* Treasurer Login */ --primary-color-treasurer-login: #dce8f3;
+  --primary-color-hover-treasurer-login: #b0c7e0;
+  --text-color-treasurer-login: #101518;
+  --muted-text-color-treasurer-login: #5c748a;
+  --border-color-treasurer-login: #d4dce2;
+  --background-color-treasurer-login: #f9fafb;
+
+  /* Treasurer Payment Details */
+  --primary-color-treasurer-details: #0b80ee;
+  --secondary-color-treasurer-details: #e7edf4;
+  --text-primary-treasurer-details: #0d151c;
+  --text-secondary-treasurer-details: #49749c;
+  --border-color-treasurer-details: #cedce8;
+  --background-color-treasurer-details: #f8fafc;
+
+  /* Parent Login */
+  --primary-color-parent-login: #0c7ff2;
+
+  /* Treasurer Dashboard */
+  --primary-color-treasurer-dashboard: #0c7ff2;
+  --secondary-color-treasurer-dashboard: #6b7280;
+  --success-color-treasurer-dashboard: #10b981;
+  --warning-color-treasurer-dashboard: #f59e0b;
+  --danger-color-treasurer-dashboard: #ef4444;
+
+  /* Parent Payment Page */
+  --primary-color-parent-payment: #0c7ff2;
+  --checkbox-tick-svg: url("data:image/svg+xml,%3csvg viewBox=%270 0 16 16%27 fill=%27white%27 xmlns=%27http://www.w3.org/2000/svg%27%3e%3cpath d=%27M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z%27/%3e%3c/svg%3e");
+
+  /* Parent Children Info */
+  --primary-color-parent-info: #0c7ff2;
+  --secondary-color-parent-info: #f8fafc;
+  --text-primary-parent-info: #1e293b;
+  --text-secondary-parent-info: #475569;
+  --border-color-parent-info: #e2e8f0;
+  --accent-color-parent-info: #38bdf8;
+
+  /* Treasurer Pending Payments */
+  --primary-color-treasurer-pending: #0c7ff2;
+  --primary-color-hover-treasurer-pending: #0060c0;
+  --secondary-color-treasurer-pending: #64748b;
+  --text-primary-treasurer-pending: #1e293b;
+  --text-secondary-treasurer-pending: #475569;
+  --background-light-treasurer-pending: #f8fafc;
+  --border-light-treasurer-pending: #e2e8f0;
+  --warning-bg-treasurer-pending: #fffbeb;
+  --warning-text-treasurer-pending: #b45309;
+  --warning-border-treasurer-pending: #fde68a;
+
+  /* Historical Payments */
+  --primary-color-historical: #0b80ee;
+  --primary-hover-color-historical: #0968c3;
+  --secondary-text-color-historical: #4a5568;
+  --border-color-historical: #e2e8f0;
+  --background-color-historical: #f8fafc;
+  --card-background-color-historical: #ffffff;
+  --table-header-background-historical: #f1f5f9;
+  --text-primary-historical: #1a202c;
+  --text-secondary-historical: #4a5568;
+  --success-color-historical: #10b981;
+  --warning-color-historical: #f59e0b;
+  --danger-color-historical: #ef4444;
+  --rejected-color-historical: #71717a;
+  --status-rejected-bg-historical: #e4e4e7;
+  --status-rejected-text-historical: #3f3f46;
+
+  /* Register */
+  --primary-color-register: #0c7ff2;
+  --text-primary-register: #0d141c;
+  --text-secondary-register: #49739c;
+  --bg-input-register: #f0f4f8;
+  --bg-muted-register: #e7edf4;
+  --border-color-register: #e0e7f1;
+
+  /* Teacher Pages */
+  --primary-color-teacher: #0b80ee;
+  --secondary-color-teacher: #e7f3fe;
+  --text-primary-teacher: #111827;
+  --text-secondary-teacher: #6b7280;
+  --border-color-teacher: #e5e7eb;
+  --background-color-teacher: #f8fafc;
+  --card-background-color-teacher: #ffffff;
+
+  /* Admin Pages */
+  --primary-color-admin: #0b80ee;
+  --secondary-color-admin: #e7f3fe;
+  --text-primary-admin: #111827;
+  --text-secondary-admin: #6b7280;
+  --border-color-admin: #e5e7eb;
+  --background-color-admin: #f8fafc;
+  --card-background-color-admin: #ffffff;
+}
+
+/* Global font settings */
+body {
+  font-family: "Inter", "Noto Sans", sans-serif;
+}
+
+/* Reusable form input styles */
+.form-input {
+  @apply flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg h-12 placeholder:text-[var(--muted-text-color-treasurer-login)] p-3 text-base font-normal leading-normal;
+  border: 1px solid var(--border-color-treasurer-login);
+  background-color: white;
+  color: var(--text-color-treasurer-login);
+}
+.form-input:focus {
+  border-color: var(--primary-color-hover-treasurer-login);
+  box-shadow: 0 0 0 2px var(--primary-color-treasurer-login);
+  outline: none;
+}
+
+/* Reusable button styles */
+.btn-primary {
+  @apply flex w-full min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-4 text-base font-semibold leading-normal tracking-wide transition-colors duration-300 ease-in-out;
+  background-color: var(--primary-color-treasurer-login);
+  color: var(--text-color-treasurer-login);
+}
+.btn-primary:hover {
+  background-color: var(--primary-color-hover-treasurer-login);
+}
+
+/* Specific button styles for Treasurer Pending Payments */
+.btn-primary-pending {
+  @apply bg-[var(--primary-color-treasurer-pending)] text-white hover:bg-[var(--primary-color-hover-treasurer-pending)] transition-colors duration-200;
+}
+.btn-secondary-pending {
+  @apply bg-white text-[var(--text-secondary-treasurer-pending)] border border-[var(--border-light-treasurer-pending)] hover:bg-slate-50 transition-colors duration-200;
+}
+
+/* Specific button styles for Register */
+.btn-primary-register {
+  @apply flex min-w-[84px] items-center justify-center overflow-hidden rounded-xl h-12 px-6 text-base font-semibold leading-normal tracking-tight shadow-sm transition-colors duration-200 ease-in-out;
+  @apply bg-[var(--primary-color-register)] text-white hover:bg-opacity-90 focus:ring-2 focus:ring-[var(--primary-color-register)] focus:ring-opacity-50;
+}
+.btn-secondary-register {
+  @apply flex min-w-[84px] items-center justify-center overflow-hidden rounded-xl h-12 px-6 text-base font-semibold leading-normal tracking-tight transition-colors duration-200 ease-in-out;
+  @apply bg-[var(--bg-muted-register)] text-[var(--text-primary-register)] hover:bg-opacity-80 focus:ring-2 focus:ring-[var(--text-primary-register)] focus:ring-opacity-30;
+}
+.form-label-register {
+  @apply text-[var(--text-primary-register)] text-sm font-medium leading-normal pb-1.5;
+}
+.form-input-register {
+  @apply flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl border border-transparent text-base font-normal leading-normal text-[var(--text-primary-register)] placeholder:text-[var(--text-secondary-register)] focus:border-[var(--primary-color-register)] focus:outline-0 focus:ring-2 focus:ring-[var(--primary-color-register)] focus:ring-opacity-50;
+}
+
+/* Specific button styles for Teacher Login */
+.btn-primary-teacher {
+  @apply flex w-full min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-4 text-base font-semibold leading-normal tracking-wide transition-colors duration-300 ease-in-out;
+  background-color: var(--primary-color-teacher);
+  color: white;
+}
+.btn-primary-teacher:hover {
+  background-color: #0a73d6; /* A slightly darker blue for hover */
+}
+
+/* Specific form input styles for Teacher Login */
+.form-input-teacher {
+  @apply flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg h-12 placeholder:text-[var(--text-secondary-teacher)] p-3 text-base font-normal leading-normal;
+  border: 1px solid var(--border-color-teacher);
+  background-color: white;
+  color: var(--text-primary-teacher);
+}
+.form-input-teacher:focus {
+  border-color: var(--primary-color-teacher);
+  box-shadow: 0 0 0 2px var(--primary-color-teacher);
+  outline: none;
+}
+
+/* Navigation link styles */
+.nav-link-active-treasurer-details {
+  color: var(--primary-color-treasurer-details);
+  border-bottom: 2px solid var(--primary-color-treasurer-details);
+  padding-bottom: 4px;
+}
+.nav-link-active-treasurer-pending {
+  @apply text-[var(--primary-color-treasurer-pending)] font-semibold;
+}
+.active-nav-link-historical {
+  color: var(--primary-color-historical);
+  font-weight: 600;
+  border-bottom: 2px solid var(--primary-color-historical);
+  padding-bottom: 0.25rem;
+}
+.nav-link-historical:hover {
+  color: var(--primary-color-historical);
+}
+
+/* Teacher Sidebar Navigation */
+.nav-item-active-teacher {
+  background-color: var(--secondary-color-teacher);
+  color: var(--primary-color-teacher);
+  font-weight: 500;
+}
+.nav-item-active-teacher svg {
+  color: var(--primary-color-teacher);
+}
+
+/* Status pill/badge styles */
+.status-pill {
+  @apply inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium;
+}
+.status-full {
+  @apply bg-green-100 text-green-700;
+}
+.status-partial {
+  @apply bg-amber-100 text-amber-700;
+}
+.status-rejected {
+  @apply bg-red-100 text-red-700;
+}
+.status-pending-treasurer-pending {
+  @apply bg-[var(--warning-bg-treasurer-pending)] text-[var(--warning-text-treasurer-pending)] border border-[var(--warning-border-treasurer-pending)] px-3 py-1 rounded-full text-xs font-medium;
+}
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.status-completed {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+.status-pending-historical {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+.status-rejected-historical {
+  background-color: var(--status-rejected-bg-historical);
+  color: var(--status-rejected-text-historical);
+}
+
+/* Teacher Class Payments Status Badge */
+.status-badge-teacher {
+  background-color: #e6f7f0; /* Corresponds to --paid-bg-color-teacher */
+  color: #0f784b; /* Corresponds to --paid-text-color-teacher */
+  font-weight: 500;
+}
+
+/* Table styles for Parent Children Info */
+.table-header-cell {
+  @apply px-6 py-3 text-left text-xs font-semibold text-[var(--text-secondary-parent-info)] uppercase tracking-wider bg-[var(--secondary-color-parent-info)];
+}
+.table-body-cell {
+  @apply px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary-parent-info)];
+}
+.info-label {
+  @apply text-sm font-medium text-[var(--text-secondary-parent-info)];
+}
+.info-value {
+  @apply text-sm text-[var(--text-primary-parent-info)] font-semibold;
+}
+
+/* Filter section styles for Treasurer Dashboard */
+.filter-section {
+  @apply bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6;
+}
+.filter-row {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+.filter-group {
+  @apply flex flex-col gap-2;
+}
+.filter-label {
+  @apply text-sm font-medium text-slate-700;
+}
+.filter-input {
+  @apply rounded-md border-slate-300 shadow-sm focus:border-[var(--primary-color-treasurer-dashboard)] focus:ring-[var(--primary-color-treasurer-dashboard)] sm:text-sm;
+}
+
+/* Historical Payments filter buttons */
+.filter-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-color-historical);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary-historical);
+  background-color: var(--card-background-color-historical);
+  transition: all 0.2s ease-in-out;
+}
+.filter-button:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+.filter-button.active {
+  background-color: var(--primary-color-historical);
+  color: white;
+  border-color: var(--primary-color-historical);
+}
+.filter-button.active:hover {
+  background-color: var(--primary-hover-color-historical);
+  border-color: var(--primary-hover-color-historical);
+}
+
+/* Show More Button Styles */
+.show-more-button {
+  @apply inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color-historical)] focus:ring-offset-2 transition-colors;
+}
+
+/* Custom checkbox for Parent Payment Page */
+.checkbox-custom:checked {
+  background-image: var(--checkbox-tick-svg);
+  background-color: var(--primary-color-parent-payment);
+  border-color: var(--primary-color-parent-payment);
+}
+
+/* Google Fonts */
+@import url("https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@400;500;600;700;900&family=Noto+Sans:wght@400;500;600;700;900");
+
+/* Specific table column widths for Treasurer Dashboard */
+@container (min-width: 769px) {
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-120 {
+    width: 16%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-240 {
+    width: 10%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-360 {
+    width: 16%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-480 {
+    width: 13%;
+    text-align: center;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-550 {
+    width: 15%;
+    text-align: right;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-600 {
+    width: 15%;
+    text-align: right;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-720 {
+    width: 15%;
+    text-align: right;
+  }
+}
+
+@container (max-width: 768px) {
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-240,
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-360 {
+    display: none;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-120 {
+    width: 30%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-480 {
+    width: 20%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-550 {
+    width: 25%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-600 {
+    width: 25%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-720 {
+    display: none;
+  }
+}
+@container (max-width: 640px) {
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-550 {
+    display: none;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-120 {
+    width: 45%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-480 {
+    width: 25%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-600 {
+    width: 30%;
+  }
+}
+@container (max-width: 480px) {
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-600 {
+    display: none;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-120 {
+    width: 60%;
+  }
+  .table-e8c15146-7f1d-4e60-8d3d-2506ef58b70a-column-480 {
+    width: 40%;
+  }
+}
+
+/* Specific table column widths for Treasurer Pending Payments */
+@container (min-width: 769px) {
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-120 {
+    width: 16%;
+  }
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-240 {
+    width: 16%;
+  }
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-360 {
+    width: 16%;
+  }
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-480 {
+    width: 16%;
+  }
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-600 {
+    width: 16%;
+  }
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-720 {
+    width: 20%;
+  }
+}
+@container (max-width: 768px) {
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-240,
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-480 {
+    display: none;
+  }
+}
+@container (max-width: 640px) {
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-360,
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-600 {
+    display: none;
+  }
+}
+@container (max-width: 480px) {
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-120 {
+    width: 60%;
+  }
+  .table-2ad6bdc5-2b31-4b80-a4a4-c3f98541acae-column-720 {
+    width: 40%;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+/* Specific table column widths for Historical Payments */
+@container (min-width: 901px) {
+  .table-col-date {
+    width: 15%;
+  }
+  .table-col-parent {
+    width: 20%;
+  }
+  .table-col-children {
+    width: 25%;
+  }
+  .table-col-amount {
+    width: 15%;
+  }
+  .table-col-status {
+    width: 15%;
+  }
+  .table-col-details {
+    width: 10%;
+  }
+}
+@container (max-width: 900px) {
+  .table-col-children {
+    display: none;
+  }
+}
+@container (max-width: 768px) {
+  .table-col-status {
+    display: none;
+  }
+}
+@container (max-width: 640px) {
+  .table-col-amount {
+    display: none;
+  }
+  .min-w-\[800px\] {
+    min-width: auto;
+  }
+}
+@container (max-width: 480px) {
+  .table-col-date {
+    display: none;
+  }
+  .table-col-parent {
+    font-size: 0.875rem;
+  }
+  th,
+  td {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .px-6 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Specific table column widths for Teacher Dashboard */
+@container (max-width: 640px) {
+  .table-9a9d89e8-5c7f-4cc0-b1aa-097f2fe43848-column-360,
+  .table-9a9d89e8-5c7f-4cc0-b1aa-097f2fe43848-column-480 {
+    display: none;
+  }
+}
+@container (max-width: 480px) {
+  .table-9a9d89e8-5c7f-4cc0-b1aa-097f2fe43848-column-240 {
+    display: none;
+  }
+}
