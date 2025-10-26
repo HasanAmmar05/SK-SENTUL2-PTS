@@ -1,106 +1,143 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { supabaseBrowser } from '@/lib/supabase-browser';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/navigation';
+import { MainHeader } from '@/components/main-header';
 
 export default function ResetPasswordPage() {
-  const [pw1, setPw1] = useState('');
-  const [pw2, setPw2] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const supabase = createClientComponentClient();
   const router = useRouter();
-  const sp = useSearchParams();
 
+  const [verifying, setVerifying] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  // ✅ Handle the new Supabase reset flow (?code=...)
   useEffect(() => {
-    // If Supabase sent a "code" param, exchange it for a session (newer flows)
-    const code = sp.get('code');
-    const work = async () => {
+    const verifyResetLink = async () => {
       try {
-        const supabase = supabaseBrowser();
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
+        const searchParams = new URLSearchParams(window.location.search);
+        const code = searchParams.get('code');
+
+        if (!code) {
+          throw new Error('Invalid or expired reset link.');
         }
-        setReady(true);
-      } catch (e: any) {
-        setErr(e.message ?? 'Could not verify reset link.');
+
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+
+        setVerifying(false);
+      } catch (err) {
+        console.error('Reset verification error:', err);
+        setError('Invalid or expired reset link. Please request a new one.');
+        setVerifying(false);
       }
     };
-    work();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  const onSubmit = async (e: React.FormEvent) => {
+    verifyResetLink();
+  }, [supabase]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pw1.length < 8) return setErr('Password must be at least 8 characters.');
-    if (pw1 !== pw2) return setErr('Passwords do not match.');
+    setError(null);
+    setSuccess(false);
     setLoading(true);
-    setErr(null);
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase.auth.updateUser({ password: pw1 });
+      const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      // Success → route to login
-      router.push('/login?reset=success');
-    } catch (e: any) {
-      setErr(e.message ?? 'Unable to update password.');
+
+      setSuccess(true);
+      setTimeout(() => router.push('/login'), 2000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update password.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow p-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Set a new password</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Enter and confirm your new password.
-        </p>
-
-        {!ready ? (
-          <p className="mt-6 text-sm text-gray-600">Checking reset link…</p>
-        ) : (
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">New password</label>
-              <input
-                type="password"
-                required
-                minLength={8}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={pw1}
-                onChange={(e) => setPw1(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Confirm password</label>
-              <input
-                type="password"
-                required
-                minLength={8}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={pw2}
-                onChange={(e) => setPw2(e.target.value)}
-              />
-            </div>
-
-            {err && <p className="text-sm text-red-600">{err}</p>}
-
-            <button
-              disabled={loading}
-              className="w-full rounded-md bg-blue-600 py-2.5 text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Updating…' : 'Update password'}
-            </button>
-          </form>
-        )}
-
-        <a href="/login" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
-          Back to login
-        </a>
+  if (verifying) {
+    return (
+      <div className="flex items-center justify-center h-screen text-gray-500">
+        Verifying your reset link...
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <>
+      <MainHeader userType="auth" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-md rounded-2xl bg-white shadow p-6">
+          <h1 className="text-2xl font-semibold text-gray-900">Reset Password</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Enter your new password below.
+          </p>
+
+          {error && <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md">{error}</div>}
+          {success && (
+            <div className="mt-4 p-3 bg-green-50 text-green-700 rounded-md">
+              Password updated successfully! Redirecting...
+            </div>
+          )}
+
+          {!success && (
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-2.5 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? 'Updating...' : 'Update Password'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
