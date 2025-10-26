@@ -1,8 +1,17 @@
 "use client"
 import { MainHeader } from "@/components/main-header"
 import { MainFooter } from "@/components/main-footer"
+import AuthWrapper from "@/components/auth-wrapper"
 
 export default function ParentChildrenInfoPage() {
+  return (
+    <AuthWrapper>
+      <ParentDashboardContent />
+    </AuthWrapper>
+  )
+}
+
+function ParentDashboardContent() {
   return (
     <div className="relative flex size-full min-h-screen flex-col group/design-root overflow-x-hidden bg-slate-100 font-inter text-slate-800">
       <div className="layout-container flex h-full grow flex-col">

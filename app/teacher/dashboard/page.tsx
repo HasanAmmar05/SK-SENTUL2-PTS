@@ -4,8 +4,17 @@ import { useState } from "react"
 import { TeacherSidebar } from "@/components/teacher-sidebar"
 import { teacherDashboardData, getAllTeacherPayments } from "@/lib/teacher-data"
 import { Button } from "@/components/ui/button"
+import AuthWrapper from "@/components/auth-wrapper"
 
 export default function TeacherDashboardPage() {
+  return (
+    <AuthWrapper>
+      <TeacherDashboardContent />
+    </AuthWrapper>
+  )
+}
+
+function TeacherDashboardContent() {
   const { totalPaymentsReceived, totalOutstandingPayments } = teacherDashboardData
   const allPayments = getAllTeacherPayments()
   const studentsPaidCount = allPayments.filter((p) => p.status === "Confirmed").length

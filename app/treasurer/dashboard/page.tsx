@@ -5,8 +5,17 @@ import Link from "next/link"
 import { MainHeader } from "@/components/main-header"
 import { Filter, DollarSign, ArrowDown, Clock, CheckCircle, Search } from "lucide-react"
 import { allDashboardPaymentData, type PaymentData } from "@/lib/data"
+import AuthWrapper from "@/components/auth-wrapper"
 
 export default function TreasurerDashboardPage() {
+  return (
+    <AuthWrapper>
+      <TreasurerDashboardContent />
+    </AuthWrapper>
+  )
+}
+
+function TreasurerDashboardContent() {
   const [filterSectionVisible, setFilterSectionVisible] = useState(false)
   const [filteredPayments, setFilteredPayments] = useState<PaymentData[]>([])
   const [showAll, setShowAll] = useState(false)

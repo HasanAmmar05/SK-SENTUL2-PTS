@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { SchoolPayLogo } from "./school-pay-logo"
 import { Bell, Menu, X } from "lucide-react"
+import LogoutButton from "./logout-button"
 
 interface NavLink {
   name: string
@@ -229,6 +230,12 @@ export function MainHeader({ userType, activePath }: MainHeaderProps) {
           </nav>
 
           <div className="flex items-center gap-4 ml-6">
+            {/* Only show logout button for authenticated user types */}
+            {(userType === "parent" || userType === "treasurer" || userType === "teacher" || userType === "admin") && 
+              activePath !== "/login" && activePath !== "/register" && (
+                <LogoutButton />
+              )
+            }
             {userType === "treasurer" && activePath === "/treasurer/payment-details" && (
               <button className="relative text-[var(--text-secondary-treasurer-details)] hover:text-[var(--primary-color-treasurer-details)] transition-colors">
                 <Bell className="w-6 h-6" />
