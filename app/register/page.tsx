@@ -100,61 +100,66 @@ export default function RegisterPage() {
         return
       }
 
-      // 2. Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            ic_number: cleanIC,
-          },
-        },
-      })
+    // 2. Create auth user
+const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    data: {
+      full_name: fullName,
+      ic_number: cleanIC,
+    },
+  },
+})
 
-      if (authError) {
-        setError(authError.message)
-        setIsLoading(false)
-        return
-      }
+if (signUpError) {
+  setError(signUpError.message)
+  setIsLoading(false)
+  return
+}
 
-      if (!authData.user) {
-        setError("Failed to create user account. Please try again.")
-        setIsLoading(false)
-        return
-      }
+// ✅ Immediately fetch the user again (works even if email verification pending)
+const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-      // 3. Create profile
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: authData.user.id,
-        ic_number: cleanIC,
-        email,
-        full_name: fullName,
-        phone: phoneNumber,
-        role: "parent",
-        is_active: true,
-      })
+if (userError || !user) {
+  setError("Failed to fetch user information after sign-up. Please try again.")
+  setIsLoading(false)
+  return
+}
 
-      if (profileError) {
-        setError("Failed to create profile. Please contact support.")
-        setIsLoading(false)
-        return
-      }
+// 3. Create profile
+const { error: profileError } = await supabase.from("profiles").insert({
+  id: user.id, // ✅ always safe now
+  ic_number: cleanIC,
+  email,
+  full_name: fullName,
+  phone: phoneNumber,
+  role: "parent",
+  is_active: true,
+})
 
-      // 4. Add children
-      const childrenData = children.map((child) => ({
-        parent_id: authData.user.id,
-        student_name: child.name,
-        student_grade: child.grade,
-      }))
+if (profileError) {
+  console.error("Profile insert error:", profileError)
+  setError("Failed to create profile. Please contact support.")
+  setIsLoading(false)
+  return
+}
 
-      const { error: childrenError } = await supabase.from("parent_students").insert(childrenData)
+// 4. Add children
+const childrenData = children.map((child) => ({
+  parent_id: user.id, // ✅ same fetched user ID
+  student_name: child.name,
+  student_grade: child.grade,
+}))
 
-      if (childrenError) {
-        setError("Failed to add children information. Please contact support.")
-        setIsLoading(false)
-        return
-      }
+const { error: childrenError } = await supabase.from("parent_students").insert(childrenData)
+
+if (childrenError) {
+  console.error("Children insert error:", childrenError)
+  setError("Failed to add children information. Please contact support.")
+  setIsLoading(false)
+  return
+}
 
       // Success!
       setSuccess("Registration successful! Please check your email to verify your account, then you can log in.")
