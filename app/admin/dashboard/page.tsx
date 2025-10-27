@@ -6,6 +6,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import { Users, UserCheck, UserX, Plus, Search } from "lucide-react"
 import { toggleStaffStatus } from "@/app/admin/actions"
+import LogoutButton from "@/components/logout-button"
 
 interface StaffMember {
   id: string
@@ -141,13 +142,16 @@ export default function AdminDashboardPage() {
               <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
               <p className="text-sm text-slate-600 mt-1">Manage staff members and system settings</p>
             </div>
-            <Link
-              href="/admin/staff/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              Add Staff
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/admin/staff/new"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                Add Staff
+              </Link>
+              <LogoutButton />
+            </div>
           </div>
         </div>
       </header>
