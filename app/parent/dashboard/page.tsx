@@ -1,148 +1,229 @@
-"use client"
-import { MainHeader } from "@/components/main-header"
-import { MainFooter } from "@/components/main-footer"
-import AuthWrapper from "@/components/auth-wrapper"
+'use client';
 
-export default function ParentChildrenInfoPage() {
-  return (
-    <AuthWrapper>
-      <ParentDashboardContent />
-    </AuthWrapper>
-  )
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase-client';
+import { Card } from '../../../components/ui/card';
+import { Badge } from '../../../components/ui/badge';
+import { MainHeader } from '../../../components/MainHeader';
+import { format } from 'date-fns';
+
+interface Payment {
+  id: string;
+  amount: number;
+  created_at: string;
+  proof_url: string | null;
+  status: string; // “Pending” or “Completed”
 }
 
-function ParentDashboardContent() {
+interface StudentData {
+  student_name: string;
+  grade: string;
+  payments: Payment[];
+  totalPaid: number;
+  remaining: number;
+}
+
+export default function ParentDashboard() {
+  const [students, setStudents] = useState<StudentData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // 🟢 Fetch user session
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUserId(data.user?.id ?? null);
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+  if (!userId) return;
+
+  const fetchPayments = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('submitpayment')
+      .select('*')
+      .eq('parent_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error(error);
+      setLoading(false);
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+
+    // 🧮 Group all payments by student (all years)
+    const grouped: Record<string, StudentData> = {};
+
+    data.forEach((row, index) => {
+      const year = new Date(row.created_at).getFullYear();
+      const isThisYear = year === currentYear;
+
+      const baseTuition =
+        index === 0 ? 90 : index === 1 || index === 2 ? 50 : 50;
+
+      if (!grouped[row.student_name]) {
+        grouped[row.student_name] = {
+          student_name: row.student_name,
+          grade: row.grade,
+          payments: [],
+          totalPaid: 0,
+          remaining: baseTuition,
+        };
+      }
+
+      // add payment
+      grouped[row.student_name].payments.push({
+        id: row.id,
+        amount: row.amount,
+        created_at: row.created_at,
+        proof_url: row.proof_url,
+        status: 'Pending',
+      });
+
+      // accumulate total paid
+      grouped[row.student_name].totalPaid += Number(row.amount);
+    });
+
+    // 🧾 Now calculate carry-forward balances
+    Object.values(grouped).forEach((student) => {
+      // Calculate total paid *last year*
+      const lastYearPayments = data.filter(
+        (p) =>
+          p.student_name === student.student_name &&
+          new Date(p.created_at).getFullYear() === currentYear - 1
+      );
+
+      const lastYearPaid = lastYearPayments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0
+      );
+
+      const baseTuition =
+        student.student_name === Object.keys(grouped)[0]
+          ? 90
+          : Object.keys(grouped).indexOf(student.student_name) <= 2
+          ? 50
+          : 50;
+
+      // If previous year’s balance wasn’t fully paid, carry it forward
+      const remainingFromLastYear = Math.max(baseTuition - lastYearPaid, 0);
+
+      // New year total tuition = base tuition + carried balance
+      const totalTuitionForThisYear = baseTuition + remainingFromLastYear;
+
+      // Calculate what’s paid this year
+      const thisYearPayments = data.filter(
+        (p) =>
+          p.student_name === student.student_name &&
+          new Date(p.created_at).getFullYear() === currentYear
+      );
+
+      const thisYearPaid = thisYearPayments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0
+      );
+
+      // Remaining = new total - this year’s paid
+      student.remaining = totalTuitionForThisYear - thisYearPaid;
+      student.totalPaid = thisYearPaid;
+    });
+
+    setStudents(Object.values(grouped));
+    setLoading(false);
+  };
+
+  fetchPayments();
+}, [userId]);
+
+
+  if (loading) return <p className="text-center mt-10">Loading...</p>;
+
   return (
-    <div className="relative flex size-full min-h-screen flex-col group/design-root overflow-x-hidden bg-slate-100 font-inter text-slate-800">
-      <div className="layout-container flex h-full grow flex-col">
-        <MainHeader userType="parent" activePath="/parent/dashboard" />
-        <main className="px-4 sm:px-10 lg:px-20 xl:px-40 flex flex-1 justify-center py-8">
-          <div className="layout-content-container flex flex-col w-full max-w-5xl">
-            <div className="flex flex-wrap justify-between items-center gap-4 p-6 mb-8 bg-white rounded-xl shadow-lg">
-              <h1 className="text-3xl font-bold leading-tight tracking-tight text-slate-900">My Children</h1>
-            </div>
-            <section className="mb-10 bg-white p-6 rounded-xl shadow-lg">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold leading-tight text-slate-800">Emily Carter</h2>
-                <span className="text-sm font-medium text-[var(--primary-color-parent-payment)]">Grade 5</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 border-b border-slate-200 pb-6">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Remaining Tuition Fees</p>
-                  <p className="text-2xl font-bold text-red-600">MYR 20.00</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Paid So Far</p>
-                  <p className="text-2xl font-bold text-green-600">MYR 25.00</p>
-                </div>
-              </div>
-              <h3 className="text-lg font-semibold leading-tight text-slate-800 mb-4">Transaction History</h3>
-              <div className="overflow-x-auto rounded-lg border border-slate-200">
-                <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Date</th>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Description</th>
-                      <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Amount</th>
-                      <th className="px-5 py-3 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-slate-200">
-                    <tr>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-900">2024-07-15</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-600">Tuition Payment - July</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-right text-slate-900">-MYR 15.00</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 status-completed">Completed</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-900">2024-06-15</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-600">Tuition Payment - June</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-right text-slate-900">-MYR 10.00</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 status-completed">Completed</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-900">2024-05-15</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-600">Activity Fee - Art Club</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-right text-slate-900">-MYR 5.00</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 status-completed">Completed</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-900">2024-05-01</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-600">Tuition Payment - May</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-right text-slate-900">-MYR 10.00</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 status-completed">Completed</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
-            <section className="bg-white p-6 rounded-xl shadow-lg">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold leading-tight text-slate-800">Ethan Carter</h2>
-                <span className="text-sm font-medium text-[var(--primary-color-parent-payment)]">Grade 2</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 border-b border-slate-200 pb-6">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Remaining Tuition Fees</p>
-                  <p className="text-2xl font-bold text-red-600">MYR 15.00</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Paid So Far</p>
-                  <p className="text-2xl font-bold text-green-600">MYR 10.00</p>
-                </div>
-              </div>
-              <h3 className="text-lg font-semibold leading-tight text-slate-800 mb-4">Transaction History</h3>
-              <div className="overflow-x-auto rounded-lg border border-slate-200">
-                <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Date</th>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Description</th>
-                      <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Amount</th>
-                      <th className="px-5 py-3 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-slate-200">
-                    <tr>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-900">2024-07-15</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-600">Tuition Payment - July</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-right text-slate-900">-MYR 10.00</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 status-completed">Completed</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-900">2024-06-15</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-600">Tuition Payment - June</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-right text-slate-900">-MYR 10.00</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 status-completed">Completed</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-900">2024-05-15</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-600">Tuition Payment - May</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-right text-slate-900">-MYR 5.00</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 status-pending">Pending</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
+    <>
+  {/* 🟦 Navbar */}
+  <MainHeader />
+
+  {/* 🧾 Main Dashboard Content */}
+  <div className="min-h-screen bg-gray-50 py-8 px-4 flex justify-center">
+    <div className="w-full max-w-5xl">
+      <h1 className="text-xl font-bold mb-6 text-gray-800">My Children</h1>
+
+      {students.map((student, index) => (
+        <Card
+          key={index}
+          className="mb-6 p-5 bg-white shadow-sm rounded-2xl border border-gray-200"
+        >
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-semibold text-gray-800">
+              {student.student_name}
+            </h2>
+            <span className="text-sm text-gray-500">
+              Grade {student.grade}
+            </span>
           </div>
-        </main>
-        <MainFooter userType="parent" activePath="/parent/dashboard" />
-      </div>
+
+          <div className="flex justify-between mb-3">
+            <div>
+              <p className="text-xs text-gray-500">Remaining Tuition Fees</p>
+              <p className="text-base font-semibold text-red-600">
+                MYR {student.remaining.toFixed(2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Paid So Far</p>
+              <p className="text-base font-semibold text-green-600">
+                MYR {student.totalPaid.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          <h3 className="font-medium text-gray-700 text-sm mb-1">
+            Transaction History
+          </h3>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-t border-gray-200">
+              <thead>
+                <tr className="text-left text-gray-500">
+                  <th className="py-1">Date</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {student.payments.map((p) => (
+                  <tr key={p.id} className="border-t">
+                    <td className="py-1">
+                      {format(new Date(p.created_at), "yyyy-MM-dd")}
+                    </td>
+                    <td>Tuition Payment</td>
+                    <td>-MYR {p.amount.toFixed(2)}</td>
+                    <td>
+                      <Badge
+                        className={
+                          p.status === "Completed"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }
+                      >
+                        {p.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ))}
     </div>
-  )
+  </div>
+</>
+  );
 }

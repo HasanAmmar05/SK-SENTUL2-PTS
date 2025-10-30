@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabaseBrowser } from "../../lib/supabase-browser";
+import { supabaseBrowser } from "../../lib/supabase-browser-old";
 import { MainHeader } from '@/components/main-header';
 
 
@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
   return (
     <>
       {/* Header matching site design */}
-      <MainHeader userType="auth" />
+      <MainHeader/>
 
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 pt-8">
         <div className="w-full max-w-md rounded-2xl bg-white shadow p-6">

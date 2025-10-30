@@ -178,7 +178,7 @@ if (childrenError) {
   return (
     <div className="relative flex size-full min-h-screen flex-col bg-slate-50 group/design-root overflow-x-hidden">
       <div className="layout-container flex h-full grow flex-col">
-        <MainHeader userType="auth" activePath="/register" />
+        <MainHeader />
         <main className="flex flex-1 justify-center py-8 sm:py-12 px-4 sm:px-6">
           <div className="layout-content-container flex flex-col w-full max-w-2xl py-5 space-y-6">
             <h2 className="text-[var(--text-primary-register)] text-3xl font-bold leading-tight tracking-tight text-center">
