@@ -8,7 +8,7 @@ export default function TreasurerPendingPaymentsPage() {
   return (
     <div className="relative flex size-full min-h-screen flex-col group/design-root overflow-x-hidden bg-[var(--background-light-treasurer-pending)]">
       <div className="layout-container flex h-full grow flex-col">
-        <MainHeader userType="treasurer" activePath="/treasurer/pending-payments" />
+        <MainHeader userType={"treasurer"} />
         <main className="px-4 sm:px-6 lg:px-10 flex flex-1 justify-center py-8">
           <div className="layout-content-container flex flex-col w-full max-w-5xl">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
