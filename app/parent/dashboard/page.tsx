@@ -112,13 +112,19 @@ export default function ParentDashboard() {
           0
         );
 
-        // 4️⃣ Calculate total tuition for this year
-        const totalTuitionForThisYear = 90
-          remainingFromLastYear > 0 ? 90 + remainingFromLastYear : 90;
+          // 4️⃣ Calculate total tuition for this year (with carry-over)
+  let totalTuitionForThisYear =90;
+    remainingFromLastYear > 0 ? 90 + remainingFromLastYear : 90;
 
-        // 5️⃣ Calculate remaining for this year
-        student.remaining = totalTuitionForThisYear - thisYearPaid;
-        student.totalPaid = thisYearPaid;
+  // 🧩 NEW FEATURE — If grade > 6, no payment required
+  if (parseInt(student.grade) > 6) {
+    totalTuitionForThisYear = 0;
+}
+
+// 5️⃣ Calculate remaining for this year
+student.remaining = totalTuitionForThisYear - thisYearPaid;
+student.totalPaid = thisYearPaid;
+
       });
 
       setStudents(Object.values(grouped));
