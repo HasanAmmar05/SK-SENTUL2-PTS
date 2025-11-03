@@ -142,21 +142,24 @@ student.totalPaid = thisYearPaid;
       {/* 🟦 Navbar */}
       <MainHeader />
 
-      {/* 🧾 Main Dashboard Content */}
-      <div className="min-h-screen bg-gray-50 py-8 px-4 flex justify-center">
-        <div className="w-full max-w-5xl">
-          <h1 className="text-xl font-bold mb-6 text-gray-800">My Children</h1>
+      <div className="min-h-screen bg-gray-100 py-8 px-4 flex justify-center">
+        <div className="w-full max-w-6xl">
+          {/* Heading box */}
+          <div className="bg-white p-6 rounded-3xl shadow-md mb-6">
+            <h1 className="text-3xl font-bold mb-0 text-gray-800">My Children</h1>
+          </div>
 
+          <div className="space-y-6">
           {students.length === 0 ? (
-  <p className="text-center text-gray-500 italic mt-10">
-    No payments made yet.
-  </p>
-) : (
-  students.map((student, index) => (
-    <Card
-      key={index}
-      className="mb-6 p-5 bg-white shadow-sm rounded-2xl border border-gray-200 hover:shadow-md transition-all"
-    >
+            <div className="bg-white p-6 rounded-2xl shadow-sm text-center text-gray-500 italic">
+              No payments made yet.
+            </div>
+          ) : (
+            students.map((student, index) => (
+              <Card
+                key={index}
+                className="mb-6 p-6 bg-white shadow-sm rounded-3xl hover:shadow-md transition-all"
+              >
       <div className="flex justify-between items-center mb-2">
         <h2 className="font-semibold text-gray-800">{student.student_name}</h2>
         <span className="text-sm text-gray-500">Grade {student.grade}</span>
@@ -189,17 +192,17 @@ student.totalPaid = thisYearPaid;
         ) : (
           <table className="w-full text-xs border-t border-gray-200">
             <thead>
-              <tr className="text-left text-gray-500">
-                <th className="py-1">Date</th>
+              <tr className="text-left text-gray-600 bg-gray-100">
+                <th className="py-2">Date</th>
                 <th>Description</th>
                 <th>Amount</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {student.payments.map((p) => (
-                <tr key={p.id} className="border-t">
-                  <td className="py-1">
+              {student.payments.map((p, idx) => (
+                <tr key={p.id} className={`border-t border-gray-100 ${idx % 2 === 1 ? 'bg-gray-50' : ''}`}>
+                  <td className="py-2">
                     {format(new Date(p.created_at), 'yyyy-MM-dd')}
                   </td>
                   <td>Tuition Payment</td>
@@ -208,8 +211,8 @@ student.totalPaid = thisYearPaid;
                     <Badge
                       className={
                         p.status === 'Completed'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-yellow-100 text-yellow-700'
+                          ? 'bg-green-100 text-green-700 rounded-full px-3 py-1'
+                          : 'bg-yellow-100 text-yellow-700 rounded-full px-3 py-1'
                       }
                     >
                       {p.status}
@@ -227,6 +230,7 @@ student.totalPaid = thisYearPaid;
 
         </div>
       </div>
+    </div>
     </>
   );
 }

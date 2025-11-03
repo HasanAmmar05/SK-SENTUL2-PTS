@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import { Button } from '@/components/ui/button';
-import { MainHeader } from '@/components/main-header';
+import { MainHeader } from '../../../components/MainHeader';
 
 export default function MakePaymentPage() {
   const [students, setStudents] = useState<any[]>([]);
@@ -178,7 +178,7 @@ const handleSubmit = async () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <MainHeader />
+      <MainHeader/>
 
       <div className="max-w-6xl mx-auto bg-white p-8 rounded-3xl shadow-md mt-6">
         <h1 className="text-3xl font-bold mb-4">Make a Payment</h1>
