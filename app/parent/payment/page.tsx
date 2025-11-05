@@ -12,7 +12,7 @@ export default function MakePaymentPage() {
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // 🟢 Fetch students belonging to logged-in parent
+  // Fetch students belonging to logged-in parent
   useEffect(() => {
   const fetchStudents = async () => {
     try {
@@ -81,7 +81,7 @@ export default function MakePaymentPage() {
 
 const uploadProof = async () => {
   if (!proofFile) {
-    console.warn("⚠️ No proof file selected.");
+    console.warn("No proof file selected.");
     return null;
   }
 
@@ -89,28 +89,28 @@ const uploadProof = async () => {
     const bucket = "payment_proofs"; // must match your Supabase storage bucket name
     const filePath = `${Date.now()}_${proofFile.name}`;
 
-    console.log("📤 Uploading:", filePath);
+    console.log(" Uploading:", filePath);
 
-    // Step 1️⃣ Upload file
+    // Step 1️ Upload file
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(filePath, proofFile, { cacheControl: "3600", upsert: false });
 
     if (uploadError) {
-      console.error("❌ Upload failed:", uploadError.message);
+      console.error("Upload failed:", uploadError.message);
       return null;
     }
 
-    console.log("✅ Upload successful:", uploadData);
+    console.log("Upload successful:", uploadData);
 
-    // Step 2️⃣ Manually construct the public URL (bypass getPublicUrl)
+    // Step 2️ Manually construct the public URL (bypass getPublicUrl)
     const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${filePath}`;
 
-    console.log("🌐 Final URL to save:", publicUrl);
+    console.log(" Final URL to save:", publicUrl);
 
     return publicUrl;
   } catch (err: any) {
-    console.error("💥 uploadProof() failed:", err);
+    console.error("uploadProof() failed:", err);
     return null;
   }
 };
@@ -118,7 +118,7 @@ const uploadProof = async () => {
 
 
 
-// 2️⃣ handleSubmit() calls that uploadProof() and uses proofUrl
+// 2 handleSubmit() calls that uploadProof() and uses proofUrl
 const handleSubmit = async () => {
   try {
     const {
@@ -147,8 +147,8 @@ const handleSubmit = async () => {
       return;
     }
 
-    const proofUrl = await uploadProof(); // ✅ use the top one
-  console.log("📤 Returned proofUrl:", proofUrl);
+    const proofUrl = await uploadProof(); // use the top one
+  console.log("Returned proofUrl:", proofUrl);
     const payload = entriesToInsert.map((e) => ({
       parent_id: e.parent_id,
       student_name: e.student_name,
@@ -164,11 +164,11 @@ const handleSubmit = async () => {
 
     if (insertError) throw insertError;
 
-    alert("✅ Payment submitted successfully!");
+    alert(" Payment submitted successfully!");
     setSelected({});
     setProofFile(null);
   } catch (err) {
-    console.error("❌ Failed to submit payment:", err);
+    console.error(" Failed to submit payment:", err);
     alert("Failed to submit payment: " + (err as any)?.message);
   } finally {
     setLoading(false);

@@ -28,7 +28,7 @@ export default function ParentDashboard() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // 🟢 Fetch logged-in user
+  //  Fetch logged-in user
   useEffect(() => {
     const fetchUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -82,11 +82,11 @@ export default function ParentDashboard() {
         grouped[row.student_name].totalPaid += Number(row.amount);
       });
 
-      // 🧮 Calculate year-to-year rollover
+      // Calculate year-to-year rollover
       Object.values(grouped).forEach((student) => {
         const lastYear = currentYear - 1;
 
-        // 1️⃣ Get total paid last year
+        // 1️ Get total paid last year
         const lastYearPayments = data.filter(
           (p) =>
             p.student_name === student.student_name &&
@@ -97,11 +97,11 @@ export default function ParentDashboard() {
           0
         );
 
-        // 2️⃣ Tuition for last year
+        // 2️ Tuition for last year
         const lastYearTuition = 90;
         const remainingFromLastYear = Math.max(lastYearTuition - lastYearPaid, 0);
 
-        // 3️⃣ Get total paid this year
+        // 3️ Get total paid this year
         const thisYearPayments = data.filter(
           (p) =>
             p.student_name === student.student_name &&

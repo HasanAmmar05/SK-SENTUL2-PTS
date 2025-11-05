@@ -97,7 +97,7 @@ export default function PaymentDetailsPage() {
               Pending Payment Details
             </h1>
             <span className="text-sm text-gray-500 flex items-center gap-1">
-              📅 Date Submitted:{' '}
+              Date Submitted:{' '}
               {payment.created_at
                 ? format(new Date(payment.created_at), 'MMM dd, yyyy')
                 : '-'}
@@ -170,14 +170,14 @@ export default function PaymentDetailsPage() {
         {/* Actions */}
         <div className="border rounded-lg bg-white shadow-sm p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 border-b pb-2">
-            ✅ Actions
+            Actions
           </h2>
           <div className="flex gap-4 mt-4">
             <Button
               onClick={() => handleAction('Rejected')}
               className="bg-gray-100 text-gray-700 hover:bg-gray-200"
             >
-              ✕ Reject
+              Reject
             </Button>
             <Button
               onClick={() => handleAction('Approved')}
