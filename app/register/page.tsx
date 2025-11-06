@@ -118,7 +118,7 @@ if (signUpError) {
   return
 }
 
-// ✅ Immediately fetch the user again (works even if email verification pending)
+
 const { data: { user }, error: userError } = await supabase.auth.getUser()
 
 if (userError || !user) {
@@ -129,7 +129,7 @@ if (userError || !user) {
 
 // 3. Create profile
 const { error: profileError } = await supabase.from("profiles").insert({
-  id: user.id, // ✅ always safe now
+  id: user.id, 
   ic_number: cleanIC,
   email,
   full_name: fullName,
@@ -147,7 +147,7 @@ if (profileError) {
 
 // 4. Add children
 const childrenData = children.map((child) => ({
-  parent_id: user.id, // ✅ same fetched user ID
+  parent_id: user.id, 
   student_name: child.name,
   student_grade: child.grade,
 }))
