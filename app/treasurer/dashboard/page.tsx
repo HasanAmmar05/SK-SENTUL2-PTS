@@ -17,7 +17,11 @@ export default function TreasurerDashboardPage() {
 
 function TreasurerDashboardContent() {
   const [filterSectionVisible, setFilterSectionVisible] = useState(false)
+<<<<<<< HEAD
   const [filteredPayments, setFilteredPayments] = useState<PaymentData[]>(allDashboardPaymentData) // Initialize with all data
+=======
+  const [filteredPayments, setFilteredPayments] = useState<PaymentData[]>([])
+>>>>>>> 1154ffb2c22266ec59215616f3cd37d698bd5526
   const [showAll, setShowAll] = useState(false)
 
   const [startDate, setStartDate] = useState("")
@@ -102,6 +106,7 @@ function TreasurerDashboardContent() {
     setFilteredPayments(filteredData)
   }
 
+<<<<<<< HEAD
   // Calculate totals from all payment data (not filtered)
   const totalToReceive = allDashboardPaymentData.reduce((sum, payment) => sum + payment.remainingAmount, 0)
   const totalReceived = allDashboardPaymentData
@@ -109,6 +114,14 @@ function TreasurerDashboardContent() {
     .reduce((sum, payment) => sum + payment.amountPaid, 0)
   const partialPaymentsCount = allDashboardPaymentData.filter((payment) => payment.status === "partial").length
   const fullPaymentsCount = allDashboardPaymentData.filter((payment) => payment.status === "full").length
+=======
+  const totalToReceive = filteredPayments.reduce((sum, payment) => sum + payment.remainingAmount, 0)
+  const totalReceived = filteredPayments
+    .filter((payment) => payment.status === "full" || payment.status === "partial")
+    .reduce((sum, payment) => sum + payment.amountPaid, 0)
+  const partialPaymentsCount = filteredPayments.filter((payment) => payment.status === "partial").length
+  const fullPaymentsCount = filteredPayments.filter((payment) => payment.status === "full").length
+>>>>>>> 1154ffb2c22266ec59215616f3cd37d698bd5526
 
   const renderPaymentOverview = () => {
     const itemsToShow = showAll ? filteredPayments : filteredPayments.slice(0, 5)

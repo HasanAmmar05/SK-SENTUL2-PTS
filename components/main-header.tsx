@@ -319,4 +319,8 @@ export function MainHeader({ userType, activePath }: MainHeaderProps) {
       )}
     </header>
   )
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 1154ffb2c22266ec59215616f3cd37d698bd5526
