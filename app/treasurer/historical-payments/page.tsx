@@ -8,16 +8,27 @@ import { Search, Plus } from "lucide-react"
 import { allHistoricalPaymentData, type HistoricalPaymentData } from "@/lib/data"
 
 export default function HistoricalPaymentsPage() {
+<<<<<<< HEAD
+  const [gradeFilter, setGradeFilter] = useState("")
+  const [rejectedCheckbox, setRejectedCheckbox] = useState(true) // Default to showing rejected
+  const [partiallyPaidCheckbox, setPartiallyPaidCheckbox] = useState(false)
+  const [completedCheckbox, setCompletedCheckbox] = useState(true) // Default to showing approved/completed
+  const [parentNameSearch, setParentNameSearch] = useState("")
+=======
+>>>>>>> 1154ffb2c22266ec59215616f3cd37d698bd5526
   const [filteredPayments, setFilteredPayments] = useState<HistoricalPaymentData[]>([])
   const [displayedCount, setDisplayedCount] = useState(0)
   const [isFullTableDisplayed, setIsFullTableDisplayed] = useState(false)
 
+<<<<<<< HEAD
+=======
   const [gradeFilter, setGradeFilter] = useState("")
   const [rejectedCheckbox, setRejectedCheckbox] = useState(false)
   const [partiallyPaidCheckbox, setPartiallyPaidCheckbox] = useState(false)
   const [completedCheckbox, setCompletedCheckbox] = useState(false)
   const [parentNameSearch, setParentNameSearch] = useState("")
 
+>>>>>>> 1154ffb2c22266ec59215616f3cd37d698bd5526
   useEffect(() => {
     filterAndRenderPayments()
   }, [gradeFilter, rejectedCheckbox, partiallyPaidCheckbox, completedCheckbox, parentNameSearch])
