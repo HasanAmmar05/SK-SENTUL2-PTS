@@ -40,14 +40,72 @@ export default function PaymentDetailsPage() {
 
     const fetchDetails = async () => {
       try {
-        const { data: paymentData, error: paymentError } = await supabase
+        console.log('🔍 Fetching payment with ID:', id);
+        
+        // First, try to fetch from submitpayment (pending payments)
+        let { data: paymentData, error: paymentError } = await supabase
           .from('submitpayment')
           .select('*')
           .eq('id', id)
           .single();
 
-        if (paymentError || !paymentData) throw paymentError;
+        if (paymentData) {
+          console.log('✅ Found in submitpayment (pending):', paymentData);
+        }
+
+        // If not found, try approved_payments using submitpayment_id
+        if (paymentError) {
+          console.log('⚠️ Not in submitpayment, checking approved_payments...');
+          const { data: approvedData, error: approvedError } = await supabase
+            .from('approved_payments')
+            .select('*')
+            .eq('submitpayment_id', id)
+            .single();
+
+          if (!approvedError && approvedData) {
+            console.log('✅ Found in approved_payments:', approvedData);
+            paymentData = {
+              ...approvedData,
+              id: approvedData.submitpayment_id || id, // Use the original ID
+              status: 'Approved'
+            };
+            paymentError = null;
+          } else {
+            console.log('⚠️ Not in approved_payments, checking rejected_payments...');
+            // If not in approved, try rejected_payments using submitpayment_id
+            const { data: rejectedData, error: rejectedError } = await supabase
+              .from('rejected_payments')
+              .select('*')
+              .eq('submitpayment_id', id)
+              .single();
+
+            if (!rejectedError && rejectedData) {
+              console.log('✅ Found in rejected_payments:', rejectedData);
+              paymentData = {
+                ...rejectedData,
+                id: rejectedData.submitpayment_id || id, // Use the original ID
+                status: 'Rejected'
+              };
+              paymentError = null;
+            } else {
+              console.log('❌ Not found in any table');
+            }
+          }
+        }
+
+        if (paymentError || !paymentData) {
+          console.error('❌ Payment not found. Error:', paymentError);
+          console.error('Searched ID:', id);
+          throw new Error('Payment not found');
+        }
+        
+        console.log('📋 Final payment data:', paymentData);
         setPayment(paymentData);
+
+        // Set action status if already processed
+        if (paymentData.status === 'Approved' || paymentData.status === 'Rejected') {
+          setActionStatus(paymentData.status);
+        }
 
         if (paymentData.parent_id) {
           const { data: profileData, error: profileError } = await supabase
@@ -56,11 +114,15 @@ export default function PaymentDetailsPage() {
             .eq('id', paymentData.parent_id)
             .single();
 
-          if (profileError) throw profileError;
+          if (profileError) {
+            console.error('❌ Profile fetch error:', profileError);
+            throw profileError;
+          }
+          console.log('✅ Parent profile:', profileData);
           setParent(profileData);
         }
       } catch (err) {
-        console.error(' Error fetching payment details:', err);
+        console.error('❌ Error fetching payment details:', err);
       } finally {
         setLoading(false);
       }
@@ -78,36 +140,56 @@ export default function PaymentDetailsPage() {
       const destinationTable =
         newStatus === 'Approved' ? 'approved_payments' : 'rejected_payments';
 
-      // 1️Insert into target table
-      const { error: insertError } = await supabase.from(destinationTable).insert([
-        {
-          parent_id: payment.parent_id,
-          student_name: payment.student_name,
-          grade: payment.grade,
-          amount: payment.amount,
-          proof_url: payment.proof_url,
-          created_at: payment.created_at,
-          ...(newStatus === 'Approved'
-            ? { approved_at: new Date().toISOString() }
-            : { rejected_at: new Date().toISOString() }),
-        },
-      ]);
+      // Prepare the data to insert
+      const dataToInsert = {
+        submitpayment_id: payment.id, // Store the original payment ID
+        parent_id: payment.parent_id,
+        student_name: payment.student_name,
+        grade: payment.grade,
+        amount: payment.amount,
+        proof_url: payment.proof_url,
+        created_at: payment.created_at,
+        ...(newStatus === 'Approved'
+          ? { approved_at: new Date().toISOString() }
+          : { rejected_at: new Date().toISOString() }),
+      };
 
-      if (insertError) throw insertError;
+      console.log('📤 Inserting into', destinationTable, ':', dataToInsert);
 
-      // 2️ Remove from submitpayment
+      // 1️⃣ Insert into target table with submitpayment_id
+      const { data: insertedData, error: insertError } = await supabase
+        .from(destinationTable)
+        .insert([dataToInsert])
+        .select();
+
+      if (insertError) {
+        console.error('❌ Insert error:', insertError);
+        throw insertError;
+      }
+
+      console.log('✅ Insert successful:', insertedData);
+
+      // 2️⃣ Remove from submitpayment
       const { error: deleteError } = await supabase
         .from('submitpayment')
         .delete()
         .eq('id', payment.id);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('❌ Delete error:', deleteError);
+        throw deleteError;
+      }
+
+      console.log('✅ Deleted from submitpayment');
 
       // Update local state
       setActionStatus(newStatus);
+      setPayment({ ...payment, status: newStatus });
+      
+      alert(`Payment ${newStatus.toLowerCase()} successfully!`);
     } catch (err: any) {
-      console.error('Error handling action:', err.message);
-      alert('Failed to update payment status.');
+      console.error('❌ Error handling action:', err.message, err);
+      alert('Failed to update payment status: ' + err.message);
     } finally {
       setIsProcessing(false);
     }
@@ -128,7 +210,7 @@ export default function PaymentDetailsPage() {
         <div className="border rounded-lg bg-white shadow-sm p-6">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-2xl font-semibold text-gray-800">
-              Pending Payment Details
+              {actionStatus ? `${actionStatus} Payment Details` : 'Pending Payment Details'}
             </h1>
             <span className="text-sm text-gray-500">
               Date Submitted:{' '}
@@ -138,7 +220,9 @@ export default function PaymentDetailsPage() {
             </span>
           </div>
           <p className="text-sm text-gray-500">
-            Review and approve or reject the payment details submitted by the parent.
+            {actionStatus 
+              ? `This payment has been ${actionStatus.toLowerCase()}.`
+              : 'Review and approve or reject the payment details submitted by the parent.'}
           </p>
         </div>
 
@@ -170,7 +254,7 @@ export default function PaymentDetailsPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="py-3 px-4 text-sm font-semibold text-gray-700">
-                  Child’s Name
+                  Child's Name
                 </th>
                 <th className="py-3 px-4 text-sm font-semibold text-gray-700">Grade</th>
                 <th className="py-3 px-4 text-sm font-semibold text-gray-700">Amount</th>
