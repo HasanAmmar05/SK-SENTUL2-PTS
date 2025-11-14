@@ -12,7 +12,7 @@ export default function TreasurerLoginPage() {
   const [error, setError] = useState("")
   const router = useRouter()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     // Simulated authentication (replace with actual API call in production)
