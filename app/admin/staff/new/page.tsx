@@ -1,23 +1,23 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react"
 import { addStaffMember } from "@/app/admin/actions"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export default function AddStaffPage() {
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
   const [formData, setFormData] = useState({
     fullName: "",
-    icNumber: "",
     email: "",
     phone: "",
     role: "teacher" as "teacher" | "treasurer",
     assignedClasses: [] as string[],
-    employeeId: "",
   })
 
   const [error, setError] = useState("")
@@ -26,6 +26,25 @@ export default function AddStaffPage() {
   const [tempPassword, setTempPassword] = useState("")
 
   const availableClasses = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B", "6A", "6B"]
+
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      console.log("AddStaffPage:clientHasUser", { hasUser: !!user })
+      if (!user) {
+        router.push("/login")
+        return
+      }
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+      console.log("AddStaffPage:clientRole", { role: profile?.role })
+      if (!profile || profile.role !== "admin") {
+        router.push("/login")
+      }
+    }
+    checkAdminAccess()
+  }, [])
 
   const handleClassToggle = (className: string) => {
     setFormData((prev) => ({
@@ -43,7 +62,10 @@ export default function AddStaffPage() {
     setIsLoading(true)
 
     try {
+      const { data: preUser } = await supabase.auth.getUser()
+      console.log("AddStaffPage:preSubmitClientUser", { hasUser: !!preUser?.user })
       const result = await addStaffMember(formData)
+      console.log("addStaffMember:clientResult", result)
 
       if (result.error) {
         setError(result.error)
@@ -147,21 +169,6 @@ export default function AddStaffPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                IC Number (MyKad) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="XXXXXX-XX-XXXX"
-                value={formData.icNumber}
-                onChange={(e) => setFormData({ ...formData, icNumber: e.target.value })}
-                maxLength={14}
-                required
-              />
-              <p className="text-xs text-slate-500 mt-1">Format: 12-digit Malaysian IC number</p>
-            </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -188,16 +195,6 @@ export default function AddStaffPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Employee ID</label>
-              <input
-                type="text"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter employee ID"
-                value={formData.employeeId}
-                onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-              />
-            </div>
           </div>
 
           {formData.role === "teacher" && (

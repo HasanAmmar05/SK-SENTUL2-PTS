@@ -7,7 +7,6 @@ import { useParams, useRouter } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import Link from "next/link"
 import { ArrowLeft, AlertCircle, CheckCircle2, Trash2 } from "lucide-react"
-import { validateMalaysianIC } from "@/lib/auth-utils"
 
 interface StaffData {
   id: string
@@ -20,12 +19,10 @@ interface StaffData {
 }
 
 interface TeacherDetails {
-  employee_id: string
   assigned_classes: string[]
 }
 
 interface TreasurerDetails {
-  employee_id: string
   access_level: string
 }
 
@@ -37,13 +34,11 @@ export default function EditStaffPage() {
 
   const [formData, setFormData] = useState({
     fullName: "",
-    icNumber: "",
     email: "",
     phone: "",
     role: "teacher",
     isActive: true,
     assignedClasses: [] as string[],
-    employeeId: "",
     accessLevel: "full",
   })
 
@@ -87,13 +82,11 @@ export default function EditStaffPage() {
 
     setFormData({
       fullName: profile.full_name,
-      icNumber: profile.ic_number,
       email: profile.email,
       phone: profile.phone || "",
       role: profile.role,
       isActive: profile.is_active,
       assignedClasses: roleDetails && "assigned_classes" in roleDetails ? roleDetails.assigned_classes || [] : [],
-      employeeId: roleDetails?.employee_id || "",
       accessLevel: roleDetails && "access_level" in roleDetails ? roleDetails.access_level : "full",
     })
 
@@ -115,13 +108,6 @@ export default function EditStaffPage() {
     setSuccess("")
     setIsSaving(true)
 
-    // Validation
-    if (!validateMalaysianIC(formData.icNumber)) {
-      setError("Invalid IC number format")
-      setIsSaving(false)
-      return
-    }
-
     if (formData.role === "teacher" && formData.assignedClasses.length === 0) {
       setError("Please assign at least one class for the teacher")
       setIsSaving(false)
@@ -129,13 +115,10 @@ export default function EditStaffPage() {
     }
 
     try {
-      const cleanIC = formData.icNumber.replace(/[\s-]/g, "")
-
       // Update profile
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
-          ic_number: cleanIC,
           email: formData.email,
           full_name: formData.fullName,
           phone: formData.phone,
@@ -154,7 +137,6 @@ export default function EditStaffPage() {
         const { error: teacherError } = await supabase
           .from("teacher_details")
           .update({
-            employee_id: formData.employeeId,
             assigned_classes: formData.assignedClasses,
           })
           .eq("user_id", staffId)
@@ -168,7 +150,6 @@ export default function EditStaffPage() {
         const { error: treasurerError } = await supabase
           .from("treasurer_details")
           .update({
-            employee_id: formData.employeeId,
             access_level: formData.accessLevel,
           })
           .eq("user_id", staffId)
@@ -289,19 +270,6 @@ export default function EditStaffPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                IC Number <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={formData.icNumber}
-                onChange={(e) => setFormData({ ...formData, icNumber: e.target.value })}
-                maxLength={14}
-                required
-              />
-            </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -326,15 +294,6 @@ export default function EditStaffPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Employee ID</label>
-              <input
-                type="text"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={formData.employeeId}
-                onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-              />
-            </div>
 
             <div className="flex items-center">
               <input
