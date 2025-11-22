@@ -1,13 +1,12 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { MainHeader } from "@/components/main-header"
-import { Badge, Lock, Mail, AlertCircle } from "lucide-react"
+import { Badge, Lock, AlertCircle } from "lucide-react"
 import { validateMalaysianIC, getRedirectPathForRole } from "@/lib/auth-utils"
 
 export default function UnifiedLoginPage() {
@@ -15,7 +14,6 @@ export default function UnifiedLoginPage() {
   const supabase = createClientComponentClient()
 
   const [icNumber, setIcNumber] = useState("")
-  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -33,42 +31,34 @@ export default function UnifiedLoginPage() {
     }
 
     try {
-      // 1. Authenticate with Supabase
+      const cleanIC = icNumber.replace(/[\s-]/g, "")
+
+      // 1️⃣ Find the email linked to this IC
+      const { data: profile, error: icError } = await supabase
+        .from("profiles")
+        .select("email, ic_number, role, is_active, id")
+        .eq("ic_number", cleanIC)
+        .single()
+
+      if (icError || !profile) {
+        setError("IC number not found. Please check again.")
+        setIsLoading(false)
+        return
+      }
+
+      // 2️⃣ Authenticate using that email and provided password
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: profile.email,
         password,
       })
 
       if (authError) {
-        setError("Invalid email or password. Please try again.")
+        setError("Invalid IC or password. Please try again.")
         setIsLoading(false)
         return
       }
 
-      // 2. Get user profile to verify IC and get role
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", authData.user.id)
-        .single()
-
-      if (profileError || !profile) {
-        setError("User profile not found. Please contact administrator.")
-        await supabase.auth.signOut()
-        setIsLoading(false)
-        return
-      }
-
-      // 3. Verify IC number matches
-      const cleanIC = icNumber.replace(/[\s-]/g, "")
-      if (profile.ic_number !== cleanIC) {
-        setError("IC number does not match the account. Please check and try again.")
-        await supabase.auth.signOut()
-        setIsLoading(false)
-        return
-      }
-
-      // 4. Check if account is active
+      // 3️⃣ Check account status
       if (!profile.is_active) {
         setError("Your account has been deactivated. Please contact administrator.")
         await supabase.auth.signOut()
@@ -76,7 +66,7 @@ export default function UnifiedLoginPage() {
         return
       }
 
-      // 5. Redirect based on role
+      // 4️⃣ Redirect based on role
       const redirectPath = getRedirectPathForRole(profile.role)
       router.push(redirectPath)
     } catch (err) {
@@ -128,25 +118,6 @@ export default function UnifiedLoginPage() {
                   />
                 </div>
                 <p className="mt-1 text-xs text-slate-500">Enter your 12-digit IC number (e.g., 900101-01-1234)</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 pb-1.5" htmlFor="email">
-                  Email Address
-                </label>
-                <div className="flex items-center gap-2">
-                  <Mail className="text-slate-400 w-5 h-5 flex-shrink-0" />
-                  <input
-                    className="form-input block w-full rounded-md border-slate-300 bg-slate-50 py-2 pr-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    id="email"
-                    name="email"
-                    placeholder="your.email@example.com"
-                    required
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
               </div>
 
               <div>

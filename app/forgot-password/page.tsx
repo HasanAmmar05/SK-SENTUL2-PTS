@@ -1,8 +1,12 @@
 "use client"
 
+<<<<<<< HEAD
+import type React from "react"
+=======
 import { useState } from 'react';
 import { supabaseBrowser } from "../../lib/supabase-browser-old";
 import { MainHeader } from '@/components/main-header';
+>>>>>>> 1154ffb2c22266ec59215616f3cd37d698bd5526
 
 import { useState } from "react"
 import { supabaseBrowser } from "../../lib/supabase-browser"
@@ -34,8 +38,12 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
+<<<<<<< HEAD
+      <MainHeader userType="auth" />
+=======
       {/* Header matching site design */}
       <MainHeader/>
+>>>>>>> 1154ffb2c22266ec59215616f3cd37d698bd5526
 
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
