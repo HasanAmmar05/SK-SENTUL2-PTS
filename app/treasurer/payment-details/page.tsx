@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,7 @@ interface ParentProfile {
   phone: string | null;
 }
 
-export default function PaymentDetailsPage() {
+function PaymentDetailsContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
 
@@ -326,5 +327,13 @@ export default function PaymentDetailsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentDetailsPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Loading...</div>}>
+      <PaymentDetailsContent />
+    </Suspense>
   );
 }
