@@ -156,7 +156,18 @@ export default function UnifiedLoginPage() {
                   {isLoading ? "Signing in..." : "Sign In"}
                 </button>
               </div>
+
+              
             </form>
+            <div>
+                <button
+                  className="flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="submit"
+                  onClick={() => router.push('/teacher/login')}
+                >
+                  {"Teacher Login"}
+                </button>
+              </div>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

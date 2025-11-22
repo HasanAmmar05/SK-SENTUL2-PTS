@@ -9,23 +9,51 @@ import { MainHeader } from "@/components/main-header"
 import { MainFooter } from "@/components/main-footer"
 import { User, Lock } from "lucide-react"
 import { SchoolPayLogo } from "@/components/school-pay-logo"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export default function TeacherLoginPage() {
-  const [teacherId, setTeacherId] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
 
-    // Simulated authentication: any credentials work for now
-    if (teacherId && password) {
-      setError("")
-      router.push("/teacher/dashboard")
-    } else {
-      setError("Please enter both Teacher ID and Password.")
+    if (!email || !password) {
+      setError("Please enter both Email and Password.")
+      return
     }
+
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) {
+      setError("Invalid email or password.")
+      return
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setError("Authentication failed. Please try again.")
+      return
+    }
+
+    const { data: profile } = await supabase.from("profiles").select("role, is_active").eq("id", user.id).single()
+    if (!profile || profile.role !== "teacher") {
+      setError("You do not have teacher access.")
+      await supabase.auth.signOut()
+      return
+    }
+    if (!profile.is_active) {
+      setError("Your account has been deactivated. Please contact administrator.")
+      await supabase.auth.signOut()
+      return
+    }
+
+    router.push("/teacher/dashboard")
   }
 
   return (
@@ -46,20 +74,20 @@ export default function TeacherLoginPage() {
               <div>
                 <label
                   className="block text-sm font-medium text-[var(--text-primary-teacher)] pb-1.5"
-                  htmlFor="teacher-id"
+                  htmlFor="email"
                 >
-                  Teacher ID
+                  Email Address
                 </label>
                 <div className="flex items-center gap-2">
                   <User className="w-5 h-5 text-[var(--text-secondary-teacher)]" />
                   <input
                     className="form-input-teacher flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg h-12 placeholder:text-[var(--text-secondary-teacher)] p-3 text-base font-normal leading-normal"
-                    id="teacher-id"
-                    name="teacher-id"
-                    placeholder="Enter your Teacher ID"
-                    type="text"
-                    value={teacherId}
-                    onChange={(e) => setTeacherId(e.target.value)}
+                    id="email"
+                    name="email"
+                    placeholder="email@example.com"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
               </div>
