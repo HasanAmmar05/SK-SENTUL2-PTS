@@ -49,6 +49,8 @@ function TreasurerDashboardContent() {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [showAll, setShowAll] = useState(false)
+  const [globalTotals, setGlobalTotals] = useState<{ year: number; to_receive: number; received: number; outstanding: number } | null>(null)
+  const [feesMap, setFeesMap] = useState<Map<string, number>>(new Map())
 
   useEffect(() => {
   const fetchData = async () => {
@@ -121,6 +123,44 @@ function TreasurerDashboardContent() {
   fetchData()
 }, [])
 
+  useEffect(() => {
+    const fetchGlobalTotals = async () => {
+      const year = new Date().getFullYear()
+      const { data, error } = await supabase
+        .from("v_totals_global")
+        .select("year, to_receive, received, outstanding")
+        .eq("year", year)
+        .limit(1)
+      if (!error && data && data.length > 0) {
+        setGlobalTotals({
+          year: data[0].year,
+          to_receive: Number(data[0].to_receive || 0),
+          received: Number(data[0].received || 0),
+          outstanding: Number(data[0].outstanding || 0),
+        })
+      }
+    }
+    fetchGlobalTotals()
+  }, [])
+
+  useEffect(() => {
+    const fetchFeesAssignments = async () => {
+      const year = new Date().getFullYear()
+      const { data } = await supabase
+        .from("fees_assignments")
+        .select("amount_due, grade, parent_students(student_name)")
+        .eq("year", year)
+        .eq("status", "Active")
+      const map = new Map<string, number>()
+      ;(data || []).forEach((r: any) => {
+        const name = r.parent_students?.student_name
+        if (name) map.set(`${name}|${r.grade}`, Number(r.amount_due) || 0)
+      })
+      setFeesMap(map)
+    }
+    fetchFeesAssignments()
+  }, [])
+
   const getParentName = (parentId: string): string => {
     const profile = profiles.find((p) => p.id === parentId)
     return profile ? profile.full_name : "Unknown"
@@ -188,28 +228,162 @@ function TreasurerDashboardContent() {
     profiles,
   ])
 
+  const approvedByStudent = useMemo(() => {
+    const map = new Map<string, number>()
+    filteredPayments
+      .filter((p) => p.status === "Approved")
+      .forEach((p) => {
+        const k = `${p.student_name}|${p.grade}`
+        map.set(k, (map.get(k) || 0) + (Number(p.amount) || 0))
+      })
+    return map
+  }, [filteredPayments])
+
   const stats = useMemo(() => {
     const totalReceived = filteredPayments.filter((p) => p.status === "Approved").reduce((sum, p) => sum + p.amount, 0)
 
-    const totalToReceive = filteredPayments.reduce((sum, p) => sum + p.amount, 0)
+    const totalToReceive = globalTotals ? globalTotals.to_receive : filteredPayments.reduce((sum, p) => sum + p.amount, 0)
 
-    const partialPaymentsCount = filteredPayments.filter((p) => p.status === "Pending").length
-    const fullPaymentsCount = filteredPayments.filter((p) => p.status === "Approved").length
+    const approvedByStudent = new Map<string, number>()
+    filteredPayments.filter((p) => p.status === "Approved").forEach((p) => {
+      const k = `${p.student_name}|${p.grade}`
+      approvedByStudent.set(k, (approvedByStudent.get(k) || 0) + (Number(p.amount) || 0))
+    })
+    const studentsSet = new Set<string>()
+    filteredPayments.forEach((p) => studentsSet.add(`${p.student_name}|${p.grade}`))
 
-    const totalStudents = filteredPayments.length
-    const studentsPaidInFull = filteredPayments.filter((p) => p.status === "Approved").length
+    let fullPaymentsCount = 0
+    let partialPaymentsCount = 0
+    studentsSet.forEach((k) => {
+      const due = feesMap.get(k) || 0
+      const paid = approvedByStudent.get(k) || 0
+      if (due > 0) {
+        if (Math.abs(paid - due) < 0.01) fullPaymentsCount += 1
+        else if (paid > 0 && paid < due - 0.01) partialPaymentsCount += 1
+      }
+    })
+
+    const totalStudents = studentsSet.size
+    const studentsPaidInFull = fullPaymentsCount
     const percentagePaidInFull = totalStudents > 0 ? (studentsPaidInFull / totalStudents) * 100 : 0
 
     return {
       totalToReceive,
-      totalReceived,
+      totalReceived: globalTotals ? globalTotals.received : totalReceived,
       partialPaymentsCount,
       fullPaymentsCount,
       totalStudents,
       studentsPaidInFull,
       percentagePaidInFull,
     }
-  }, [filteredPayments])
+  }, [filteredPayments, globalTotals, feesMap])
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toISOString().split("T")[0]
+    } catch {
+      return iso
+    }
+  }
+
+  const escapeCSV = (val: any) => {
+    const s = String(val ?? "")
+    const needsQuotes = /[",\n]/.test(s)
+    const escaped = s.replace(/"/g, '""')
+    return needsQuotes ? `"${escaped}"` : escaped
+  }
+
+  const downloadCSV = () => {
+    const header = ["Student Name", "Class", "Parent Name", "Status", "Amount", "Date"]
+    const rows = filteredPayments.map((p) => [
+      escapeCSV(p.student_name),
+      escapeCSV(p.grade),
+      escapeCSV(getParentName(p.parent_id)),
+      escapeCSV(p.status),
+      escapeCSV(p.amount.toFixed(2)),
+      escapeCSV(formatDate(p.created_at)),
+    ])
+    const lines = [header.join(","), ...rows.map((r) => r.join(","))]
+    lines.push("")
+    const outstanding = globalTotals ? globalTotals.outstanding : Math.max(stats.totalToReceive - stats.totalReceived, 0)
+    lines.push(["Total To Receive", String(globalTotals ? globalTotals.to_receive.toFixed(2) : stats.totalToReceive.toFixed(2))].join(","))
+    lines.push(["Total Received", String(globalTotals ? globalTotals.received.toFixed(2) : stats.totalReceived.toFixed(2))].join(","))
+    lines.push(["Outstanding", String(outstanding.toFixed(2))].join(","))
+    lines.push(["Students Paid", `${stats.studentsPaidInFull}/${stats.totalStudents}`].join(","))
+    const csv = lines.join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `treasurer-report-${new Date().toISOString().split("T")[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadPDF = () => {
+    const w = window.open("", "_blank")
+    if (!w) return
+    const title = `Treasurer Report - ${new Date().toLocaleDateString()}`
+    const outstanding = globalTotals ? globalTotals.outstanding : Math.max(stats.totalToReceive - stats.totalReceived, 0)
+    const summary = `
+      <div style="margin-bottom:16px;">
+        <h2 style="margin:0 0 8px 0;">Summary</h2>
+        <div>Total To Receive: MYR ${(globalTotals ? globalTotals.to_receive : stats.totalToReceive).toFixed(2)}</div>
+        <div>Total Received: MYR ${(globalTotals ? globalTotals.received : stats.totalReceived).toFixed(2)}</div>
+        <div>Outstanding: MYR ${outstanding.toFixed(2)}</div>
+        <div>Students Paid: ${stats.studentsPaidInFull}/${stats.totalStudents}</div>
+      </div>
+    `
+    const tableHeader = `
+      <tr>
+        <th style="text-align:left;padding:8px;border-bottom:1px solid #ddd;">Student Name</th>
+        <th style="text-align:left;padding:8px;border-bottom:1px solid #ddd;">Class</th>
+        <th style="text-align:left;padding:8px;border-bottom:1px solid #ddd;">Parent Name</th>
+        <th style="text-align:center;padding:8px;border-bottom:1px solid #ddd;">Status</th>
+        <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd;">Amount</th>
+        <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd;">Date</th>
+      </tr>
+    `
+    const tableRows = filteredPayments.map((p) => `
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(p.student_name)}</td>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(p.grade)}</td>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(getParentName(p.parent_id))}</td>
+        <td style="text-align:center;padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(p.status)}</td>
+        <td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0;">MYR ${p.amount.toFixed(2)}</td>
+        <td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0;">${formatDate(p.created_at)}</td>
+      </tr>
+    `).join("")
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>${title}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+            h1 { margin: 0 0 16px 0; }
+            table { width: 100%; border-collapse: collapse; }
+          </style>
+        </head>
+        <body>
+          <h1>${title}</h1>
+          ${summary}
+          <table>
+            <thead>${tableHeader}</thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `
+    w.document.open()
+    w.document.write(html)
+    w.document.close()
+    w.focus()
+    w.print()
+  }
 
   const toggleFilters = () => {
     setFilterSectionVisible(!filterSectionVisible)
@@ -240,13 +414,22 @@ function TreasurerDashboardContent() {
           <span className={`status-pill status-${p.status.toLowerCase()}`}>{p.status}</span>
         </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-red-600 text-right">
-          MYR {p.amount.toFixed(2)}
+          {(() => {
+            const due = feesMap.get(`${p.student_name}|${p.grade}`) || 0
+            return `MYR ${due.toFixed(2)}`
+          })()}
         </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-green-600 text-right">
-          MYR {p.status === "Approved" ? p.amount.toFixed(2) : "0.00"}
+          {`MYR ${p.amount.toFixed(2)}`}
         </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-amber-500 text-right">
-          MYR {p.status !== "Approved" ? p.amount.toFixed(2) : "0.00"}
+          {(() => {
+            const key = `${p.student_name}|${p.grade}`
+            const due = feesMap.get(key) || 0
+            const paidApproved = approvedByStudent.get(key) || 0
+            const remaining = Math.max(due - paidApproved, 0)
+            return `MYR ${remaining.toFixed(2)}`
+          })()}
         </td>
       </tr>
     ))
@@ -309,6 +492,18 @@ function TreasurerDashboardContent() {
                 >
                   View Pending Payments
                 </Link>
+                <button
+                  onClick={downloadCSV}
+                  className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color-treasurer-dashboard)] focus:ring-offset-2"
+                >
+                  Download CSV
+                </button>
+                <button
+                  onClick={downloadPDF}
+                  className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color-treasurer-dashboard)] focus:ring-offset-2"
+                >
+                  Download PDF
+                </button>
               </div>
             </div>
 
