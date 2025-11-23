@@ -1,21 +1,40 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { TeacherSidebar } from "@/components/teacher-sidebar"
-import { Search, Circle } from "lucide-react"
-import { getAllTeacherPayments } from "@/lib/teacher-data"
-import { Button } from "@/components/ui/button" // Assuming Button is available from shadcn/ui
+import { Search, Circle, Loader2 } from "lucide-react"
+import { getTeacherPayments, TeacherPayment } from "@/app/teacher/actions"
+import { Button } from "@/components/ui/button"
 
 export default function TeacherClassPaymentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10 // Increased items per page for better view
+  const [payments, setPayments] = useState<TeacherPayment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const itemsPerPage = 10
 
-  const allPayments = getAllTeacherPayments()
+  useEffect(() => {
+    fetchPayments()
+  }, [])
 
-  const filteredPayments = allPayments.filter(
+  const fetchPayments = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const result = await getTeacherPayments()
+      setPayments(result.payments)
+    } catch (err) {
+      console.error("Failed to fetch payments:", err)
+      setError("Failed to load payments. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredPayments = payments.filter(
     (payment) =>
       payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.className.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -54,6 +73,44 @@ export default function TeacherClassPaymentsPage() {
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="relative flex size-full min-h-screen flex-col bg-[var(--background-color-teacher)] group/design-root overflow-x-hidden">
+        <div className="flex h-full grow flex-row">
+          <TeacherSidebar />
+          <main className="flex-1 bg-[var(--background-color-teacher)] p-8">
+            <div className="max-w-5xl mx-auto flex items-center justify-center h-64">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-6 w-6 animate-spin text-[var(--primary-color-teacher)]" />
+                <span className="text-[var(--text-primary-teacher)]">Loading payments...</span>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="relative flex size-full min-h-screen flex-col bg-[var(--background-color-teacher)] group/design-root overflow-x-hidden">
+        <div className="flex h-full grow flex-row">
+          <TeacherSidebar />
+          <main className="flex-1 bg-[var(--background-color-teacher)] p-8">
+            <div className="max-w-5xl mx-auto">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800">{error}</p>
+              </div>
+              <Button onClick={fetchPayments}>
+                Retry
+              </Button>
+            </div>
+          </main>
+        </div>
+      </div>
+    )
   }
 
   return (

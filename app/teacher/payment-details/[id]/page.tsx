@@ -3,16 +3,56 @@
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { getTeacherPaymentById } from "@/lib/teacher-data"
+import { getTeacherPaymentById, TeacherPayment } from "@/app/teacher/actions"
 import { TeacherSidebar } from "@/components/teacher-sidebar"
-import { Button } from "@/components/ui/button" // Assuming Button is available from shadcn/ui
+import { Button } from "@/components/ui/button"
+import { useEffect, useState } from "react"
+import { Loader2 } from "lucide-react"
 
 export default function TeacherPaymentDetailsPage() {
   const params = useParams()
   const paymentId = params.id as string
-  const payment = getTeacherPaymentById(paymentId)
+  const [payment, setPayment] = useState<TeacherPayment | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!payment) {
+  useEffect(() => {
+    fetchPaymentDetails()
+  }, [paymentId])
+
+  const fetchPaymentDetails = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const result = await getTeacherPaymentById(paymentId)
+      setPayment(result)
+    } catch (err) {
+      console.error("Failed to fetch payment details:", err)
+      setError("Failed to load payment details. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="relative flex size-full min-h-screen flex-col bg-[var(--background-color-teacher)] group/design-root overflow-x-hidden">
+        <div className="flex h-full grow flex-row">
+          <TeacherSidebar />
+          <main className="flex-1 bg-[var(--background-color-teacher)] p-8">
+            <div className="max-w-5xl mx-auto flex items-center justify-center h-64">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-6 w-6 animate-spin text-[var(--primary-color-teacher)]" />
+                <span className="text-[var(--text-primary-teacher)]">Loading payment details...</span>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !payment) {
     return (
       <div className="relative flex size-full min-h-screen flex-col bg-[var(--background-color-teacher)] group/design-root overflow-x-hidden">
         <div className="flex h-full grow flex-row">
@@ -21,11 +61,11 @@ export default function TeacherPaymentDetailsPage() {
             <div className="max-w-5xl mx-auto">
               <h1 className="text-[var(--text-primary-teacher)] text-3xl font-bold leading-tight">Payment Not Found</h1>
               <p className="text-[var(--text-secondary-teacher)] mt-4">
-                The payment details for ID &quot;{paymentId}&quot; could not be found.
+                {error || `The payment details for ID "${paymentId}" could not be found.`}
               </p>
-              <Link href="/teacher/payments" passHref>
+              <Link href="/teacher/dashboard" passHref>
                 <Button className="mt-6">
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Payments
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
                 </Button>
               </Link>
             </div>
@@ -56,9 +96,9 @@ export default function TeacherPaymentDetailsPage() {
           <div className="max-w-3xl mx-auto bg-[var(--card-background-color-teacher)] rounded-xl shadow-lg border border-[var(--border-color-teacher)] p-8">
             <header className="mb-6 flex items-center justify-between">
               <h1 className="text-[var(--text-primary-teacher)] text-3xl font-bold leading-tight">Payment Details</h1>
-              <Link href="/teacher/payments" passHref>
+              <Link href="/teacher/dashboard" passHref>
                 <Button variant="outline" size="sm">
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Payments
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
                 </Button>
               </Link>
             </header>
