@@ -18,6 +18,10 @@ export interface TeacherDashboardStats {
   totalOutstandingPayments: number;
   studentsPaidCount: number;
   totalStudents: number;
+  totalToReceive: number;
+  partialPaymentsCount: number;
+  fullPaymentsCount: number;
+  percentagePaidInFull: number;
 }
 
 export async function getTeacherPayments() {
@@ -36,6 +40,10 @@ export async function getTeacherPayments() {
           totalOutstandingPayments: 0,
           studentsPaidCount: 0,
           totalStudents: 0,
+          totalToReceive: 0,
+          partialPaymentsCount: 0,
+          fullPaymentsCount: 0,
+          percentagePaidInFull: 0,
         },
       };
     }
@@ -58,6 +66,10 @@ export async function getTeacherPayments() {
           totalOutstandingPayments: 0,
           studentsPaidCount: 0,
           totalStudents: 0,
+          totalToReceive: 0,
+          partialPaymentsCount: 0,
+          fullPaymentsCount: 0,
+          percentagePaidInFull: 0,
         },
       };
     }
@@ -81,6 +93,10 @@ export async function getTeacherPayments() {
           totalOutstandingPayments: 0,
           studentsPaidCount: 0,
           totalStudents: 0,
+          totalToReceive: 0,
+          partialPaymentsCount: 0,
+          fullPaymentsCount: 0,
+          percentagePaidInFull: 0,
         },
       };
     }
@@ -226,6 +242,43 @@ export async function getTeacherPayments() {
       confirmedPayments.map((p) => `${p.studentName}|${p.className}`)
     ).size;
     let totalStudents = students.length;
+    let partialPaymentsCount = pendingPayments.length;
+    let fullPaymentsCount = 0;
+    try {
+      const currentYear = new Date().getFullYear();
+      const { data: feeRows } = await supabase
+        .from("fees_assignments")
+        .select("amount_due, grade, parent_students(student_name)")
+        .in("grade", teacherDetails.assigned_classes)
+        .eq("year", currentYear)
+        .eq("status", "Active");
+      const feeMap = new Map<string, number>();
+      (feeRows || []).forEach((r: any) => {
+        const name = r.parent_students?.student_name;
+        if (name) {
+          feeMap.set(`${name}|${r.grade}`, Number(r.amount_due) || 0);
+        }
+      });
+      const { data: approvedRows } = await supabase
+        .from("approved_payments")
+        .select("student_name, grade, amount, approved_at")
+        .in("grade", teacherDetails.assigned_classes)
+        .gte("approved_at", `${currentYear}-01-01`)
+        .lt("approved_at", `${currentYear + 1}-01-01`);
+      const paidMap = new Map<string, number>();
+      (approvedRows || []).forEach((r: any) => {
+        const k = `${r.student_name}|${r.grade}`;
+        paidMap.set(k, (paidMap.get(k) || 0) + (Number(r.amount) || 0));
+      });
+      fullPaymentsCount = Array.from(feeMap.entries()).filter(([k, due]) => {
+        const paid = paidMap.get(k) || 0;
+        return Math.abs(paid - due) < 0.01;
+      }).length;
+      partialPaymentsCount = Array.from(feeMap.entries()).filter(([k, due]) => {
+        const paid = paidMap.get(k) || 0;
+        return paid > 0 && paid < due - 0.01;
+      }).length;
+    } catch {}
 
     if (students.length === 0) {
       try {
@@ -256,6 +309,10 @@ export async function getTeacherPayments() {
       totalOutstandingPayments,
       studentsPaidCount,
       totalStudents,
+      totalToReceive: totalOutstandingPayments + totalPaymentsReceived,
+      partialPaymentsCount,
+      fullPaymentsCount,
+      percentagePaidInFull: totalStudents > 0 ? (fullPaymentsCount / totalStudents) * 100 : 0,
     };
 
     console.log("Final stats:", stats);
@@ -277,10 +334,15 @@ export async function getTeacherPayments() {
           (sum: number, r: any) => sum + Number(r.outstanding || 0),
           0
         );
+        const totalToReceiveFromView = classTotals.reduce(
+          (sum: number, r: any) => sum + Number(r.to_receive || 0),
+          0
+        );
         stats = {
           ...stats,
           totalPaymentsReceived: totalReceivedFromView,
           totalOutstandingPayments: totalOutstandingFromView,
+          totalToReceive: totalToReceiveFromView,
         };
       } else {
         const { data: toReceiveRowsYear } = await supabase
@@ -354,6 +416,7 @@ export async function getTeacherPayments() {
           ...stats,
           totalPaymentsReceived: finalReceived,
           totalOutstandingPayments: Math.max(finalToReceive - finalReceived, 0),
+          totalToReceive: finalToReceive,
         };
 
         if (students.length === 0) {
@@ -379,6 +442,7 @@ export async function getTeacherPayments() {
             ...stats,
             studentsPaidCount: paidCount,
             totalStudents: totalStudentsCount,
+            percentagePaidInFull: totalStudentsCount > 0 ? (paidCount / totalStudentsCount) * 100 : 0,
           };
         }
       }

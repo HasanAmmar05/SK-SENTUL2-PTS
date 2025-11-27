@@ -141,6 +141,13 @@ export default function TeacherPaymentDetailsPage() {
               ) : (
                 <p className="text-[var(--text-secondary-teacher)]">No payment proof available.</p>
               )}
+              {payment.status === "Confirmed" && (
+                <div className="mt-4">
+                  <Link href={`/receipts/${payment.id}`} passHref>
+                    <Button>Download Receipt</Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </main>

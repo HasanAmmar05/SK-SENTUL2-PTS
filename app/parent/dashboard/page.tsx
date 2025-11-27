@@ -211,6 +211,7 @@ allStudents.forEach((student, index) => {
                             <th className="px-2">Description</th>
                             <th className="px-2">Amount</th>
                             <th className="px-2">Status</th>
+                            <th className="px-2">Receipt</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -244,6 +245,13 @@ allStudents.forEach((student, index) => {
                                   >
                                     {p.status}
                                   </Badge>
+                                </td>
+                                <td className="px-2">
+                                  {p.status === 'Approved' ? (
+                                    <a href={`/receipts/${p.id}`} className="text-blue-600 underline">Download</a>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
                                 </td>
                               </tr>
                             ))}

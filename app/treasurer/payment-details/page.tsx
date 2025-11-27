@@ -305,6 +305,11 @@ function PaymentDetailsContent() {
               }`}
             >
               Payment has been {actionStatus}.
+              {actionStatus === 'Approved' && (
+                <div className="mt-3">
+                  <a href={`/receipts/${payment.id}`} className="underline text-blue-600">Download Receipt</a>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex gap-4 mt-4">
