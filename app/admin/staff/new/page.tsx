@@ -1,50 +1,67 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react"
-import { addStaffMember } from "@/app/admin/actions"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react";
+import { addStaffMember } from "@/app/admin/actions";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function AddStaffPage() {
-  const router = useRouter()
-  const supabase = createClientComponentClient()
+  const router = useRouter();
+  const supabase = createClientComponentClient();
 
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    phone: "",
+    password: "",
     role: "teacher" as "teacher" | "treasurer",
     assignedClasses: [] as string[],
-  })
+  });
 
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [tempPassword, setTempPassword] = useState("")
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [tempPassword, setTempPassword] = useState("");
 
-  const availableClasses = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B", "6A", "6B"]
+  const availableClasses = [
+    "1A",
+    "1B",
+    "2A",
+    "2B",
+    "3A",
+    "3B",
+    "4A",
+    "4B",
+    "5A",
+    "5B",
+    "6A",
+    "6B",
+  ];
 
   useEffect(() => {
     const checkAdminAccess = async () => {
       const {
         data: { user },
-      } = await supabase.auth.getUser()
-      console.log("AddStaffPage:clientHasUser", { hasUser: !!user })
+      } = await supabase.auth.getUser();
+      console.log("AddStaffPage:clientHasUser", { hasUser: !!user });
       if (!user) {
-        router.push("/login")
-        return
+        router.push("/login");
+        return;
       }
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-      console.log("AddStaffPage:clientRole", { role: profile?.role })
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      console.log("AddStaffPage:clientRole", { role: profile?.role });
       if (!profile || profile.role !== "admin") {
-        router.push("/login")
+        router.push("/login");
       }
-    }
-    checkAdminAccess()
-  }, [])
+    };
+    checkAdminAccess();
+  }, []);
 
   const handleClassToggle = (className: string) => {
     setFormData((prev) => ({
@@ -52,55 +69,94 @@ export default function AddStaffPage() {
       assignedClasses: prev.assignedClasses.includes(className)
         ? prev.assignedClasses.filter((c) => c !== className)
         : [...prev.assignedClasses, className],
-    }))
-  }
+    }));
+  };
+
+  // Helper to pre-fill email when class is selected for "Single Class Account" mode
+  const handleSingleClassSelect = (className: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      assignedClasses: [className],
+      email: `class${className.toLowerCase()}@sksentul2.com`,
+      fullName: `Class ${className} Teacher`,
+      password: `class${className.toLowerCase()}123`, // Default suggested password
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setSuccess("")
-    setIsLoading(true)
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setIsLoading(true);
 
     try {
-      const { data: preUser } = await supabase.auth.getUser()
-      console.log("AddStaffPage:preSubmitClientUser", { hasUser: !!preUser?.user })
-      const result = await addStaffMember(formData)
-      console.log("addStaffMember:clientResult", result)
+      const { data: preUser } = await supabase.auth.getUser();
+      console.log("AddStaffPage:preSubmitClientUser", {
+        hasUser: !!preUser?.user,
+      });
+      const result = await addStaffMember(formData);
+      console.log("addStaffMember:clientResult", result);
 
       if (result.error) {
-        setError(result.error)
-        setIsLoading(false)
-        return
+        setError(result.error);
+        setIsLoading(false);
+        return;
       }
 
       if (result.success && result.tempPassword) {
-        setTempPassword(result.tempPassword)
-        setSuccess(`Staff member added successfully! Please provide the temporary password to the staff member.`)
+        setTempPassword(result.tempPassword);
+        setSuccess(
+          `Staff member added successfully! Please provide the temporary password to the staff member.`
+        );
 
         // Reset form after 5 seconds
         setTimeout(() => {
-          router.push("/admin/dashboard")
-        }, 5000)
+          router.push("/admin/dashboard");
+        }, 5000);
       }
     } catch (err) {
-      console.error("Add staff error:", err)
-      setError("An unexpected error occurred. Please try again.")
+      console.error("Add staff error:", err);
+      setError("An unexpected error occurred. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
-            <Link href="/admin/dashboard" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+            <Link
+              href="/admin/dashboard"
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            >
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Add New Staff Member</h1>
-              <p className="text-sm text-slate-600 mt-1">Create a new teacher or treasurer account</p>
+              <h1 className="text-2xl font-bold text-slate-900">
+                Add New Staff Member
+              </h1>
+              <p className="text-sm text-slate-600 mt-1">
+                Create a new teacher or treasurer account
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Password{" "}
+                  <span className="text-slate-400 text-xs font-normal">
+                    (Optional - leave blank to auto-generate)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter custom password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -126,9 +182,15 @@ export default function AddStaffPage() {
                 <p className="text-sm text-green-800">{success}</p>
                 {tempPassword && (
                   <div className="mt-3 p-3 bg-white rounded border border-green-300">
-                    <p className="text-xs text-slate-600 font-medium mb-1">Temporary Password:</p>
-                    <p className="text-lg font-mono font-bold text-green-900 select-all">{tempPassword}</p>
-                    <p className="text-xs text-slate-600 mt-2">⚠️ Save this password! It won't be shown again.</p>
+                    <p className="text-xs text-slate-600 font-medium mb-1">
+                      Temporary Password:
+                    </p>
+                    <p className="text-lg font-mono font-bold text-green-900 select-all">
+                      {tempPassword}
+                    </p>
+                    <p className="text-xs text-slate-600 mt-2">
+                      ⚠️ Save this password! It won't be shown again.
+                    </p>
                   </div>
                 )}
               </div>
@@ -136,9 +198,14 @@ export default function AddStaffPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6"
+        >
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900">Basic Information</h3>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Basic Information
+            </h3>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -147,7 +214,12 @@ export default function AddStaffPage() {
               <select
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as "teacher" | "treasurer" })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    role: e.target.value as "teacher" | "treasurer",
+                  })
+                }
                 required
               >
                 <option value="teacher">Teacher</option>
@@ -164,11 +236,12 @@ export default function AddStaffPage() {
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter full name as per IC"
                 value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, fullName: e.target.value })
+                }
                 required
               />
             </div>
-
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -179,22 +252,12 @@ export default function AddStaffPage() {
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="email@example.com"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
                 required
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Phone Number</label>
-              <input
-                type="tel"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="01X-XXX XXXX"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-
           </div>
 
           {formData.role === "teacher" && (
@@ -241,5 +304,5 @@ export default function AddStaffPage() {
         </form>
       </main>
     </div>
-  )
+  );
 }

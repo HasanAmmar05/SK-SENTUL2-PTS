@@ -9,9 +9,10 @@ import { generateTemporaryPassword } from "@/lib/auth-utils";
 interface AddStaffData {
   fullName: string;
   email: string;
-  phone: string;
+  phone?: string;
   role: "teacher" | "treasurer";
   assignedClasses?: string[];
+  password?: string;
 }
 
 export async function addStaffMember(data: AddStaffData) {
@@ -68,8 +69,8 @@ export async function addStaffMember(data: AddStaffData) {
       return { error: "This email is already registered" };
     }
 
-    // Generate temporary password
-    const tempPassword = generateTemporaryPassword();
+    // Generate temporary password if not provided
+    const tempPassword = data.password || generateTemporaryPassword();
 
     // Use admin client to create user
     const adminClient = createAdminClient();
@@ -108,7 +109,10 @@ export async function addStaffMember(data: AddStaffData) {
       role: data.role,
       is_active: true,
     });
-    console.log("addStaffMember:insertProfile", { hasError: !!profileError, ic_number: generatedIc });
+    console.log("addStaffMember:insertProfile", {
+      hasError: !!profileError,
+      ic_number: generatedIc,
+    });
 
     if (profileError) {
       console.error("Profile error:", profileError);
@@ -160,6 +164,99 @@ export async function addStaffMember(data: AddStaffData) {
     };
   } catch (error) {
     console.error("addStaffMember:unexpected", error);
+    return {
+      error:
+        error instanceof Error ? error.message : "An unexpected error occurred",
+    };
+  }
+}
+
+export async function addClassAccount(className: string, password?: string) {
+  try {
+    const supabase = createServerActionClient({ cookies });
+
+    // Auth Check
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.role !== "admin") {
+      return { error: "Unauthorized: Admin access required" };
+    }
+
+    // Validate Input
+    if (!className) return { error: "Class name is required" };
+
+    const email = `class${className.toLowerCase()}@sksentul2.com`;
+    const fullName = `Class ${className} Teacher`;
+
+    // Check existing
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("email", email)
+      .single();
+
+    if (existingProfile) {
+      return { error: `An account for Class ${className} already exists` };
+    }
+
+    // Generate password if needed (though UI should provide it)
+    const finalPassword = password || generateTemporaryPassword();
+
+    // Create User
+    const adminClient = createAdminClient();
+    const { data: authData, error: authError } =
+      await adminClient.auth.admin.createUser({
+        email: email,
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      });
+
+    if (authError) return { error: authError.message };
+    if (!authData.user) return { error: "Failed to create user account" };
+
+    // Create Profile
+    const generatedIc = authData.user.id.replace(/-/g, "").slice(0, 12);
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: authData.user.id,
+      ic_number: generatedIc,
+      email: email,
+      full_name: fullName,
+      role: "teacher",
+      is_active: true,
+    });
+
+    if (profileError)
+      return { error: "Failed to create profile: " + profileError.message };
+
+    // Create Teacher Details
+    const { error: teacherError } = await supabase
+      .from("teacher_details")
+      .insert({
+        user_id: authData.user.id,
+        assigned_classes: [className],
+      });
+
+    if (teacherError)
+      return {
+        error: "Failed to create class details: " + teacherError.message,
+      };
+
+    return {
+      success: true,
+      message: `Class ${className} account created successfully`,
+    };
+  } catch (error) {
+    console.error("addClassAccount:unexpected", error);
     return {
       error:
         error instanceof Error ? error.message : "An unexpected error occurred",
@@ -251,6 +348,76 @@ export async function updateStaffMember(
       error:
         error instanceof Error ? error.message : "An unexpected error occurred",
     };
+  }
+}
+
+export async function resetStaffPassword(staffId: string, newPassword: string) {
+  try {
+    const supabase = createServerActionClient({ cookies });
+
+    // Verify admin access
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.role !== "admin") {
+      return { error: "Unauthorized: Admin access required" };
+    }
+
+    const adminClient = createAdminClient();
+    const { error } = await adminClient.auth.admin.updateUserById(staffId, {
+      password: newPassword,
+    });
+
+    if (error) {
+      return { error: "Failed to reset password: " + error.message };
+    }
+
+    return { success: true, message: "Password updated successfully" };
+  } catch (error) {
+    console.error("resetStaffPassword:unexpected", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+export async function deleteStaffMember(staffId: string) {
+  try {
+    const supabase = createServerActionClient({ cookies });
+
+    // Verify admin access
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.role !== "admin") {
+      return { error: "Unauthorized: Admin access required" };
+    }
+
+    const adminClient = createAdminClient();
+    const { error } = await adminClient.auth.admin.deleteUser(staffId);
+
+    if (error) {
+      return { error: "Failed to delete staff member: " + error.message };
+    }
+
+    return { success: true, message: "Staff member deleted successfully" };
+  } catch (error) {
+    console.error("deleteStaffMember:unexpected", error);
+    return { error: "An unexpected error occurred" };
   }
 }
 

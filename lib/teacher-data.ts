@@ -31,7 +31,7 @@ const classNames = ["5 A", "5 B", "5 C", "5 D", "5 E"]
 
 const generatePayments = (
   count: number,
-  status: "Confirmed" | "Pending" | "Rejected",
+  status: "Approved" | "Pending" | "Rejected",
   startDate: Date,
   endDate: Date,
 ): TeacherPayment[] => {

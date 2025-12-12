@@ -9,8 +9,9 @@ export interface TeacherPayment {
   className: string;
   amount: number;
   dateOfPayment: string;
-  status: "Confirmed" | "Pending" | "Rejected";
+  status: "Approved" | "Pending" | "Rejected" | "Unpaid";
   paymentProof?: string;
+  amountDue?: number;
 }
 
 export interface TeacherDashboardStats {
@@ -35,6 +36,8 @@ export async function getTeacherPayments() {
     if (!user) {
       return {
         payments: [],
+        assignedClasses: [],
+        classTotals: [],
         stats: {
           totalPaymentsReceived: 0,
           totalOutstandingPayments: 0,
@@ -61,6 +64,8 @@ export async function getTeacherPayments() {
     if (!teacherProfile) {
       return {
         payments: [],
+        assignedClasses: [],
+        classTotals: [],
         stats: {
           totalPaymentsReceived: 0,
           totalOutstandingPayments: 0,
@@ -88,6 +93,8 @@ export async function getTeacherPayments() {
     if (!teacherDetails) {
       return {
         payments: [],
+        assignedClasses: [],
+        classTotals: [],
         stats: {
           totalPaymentsReceived: 0,
           totalOutstandingPayments: 0,
@@ -104,6 +111,8 @@ export async function getTeacherPayments() {
     if (!teacherDetails?.assigned_classes) {
       return {
         payments: [],
+        assignedClasses: [],
+        classTotals: [],
         stats: {
           totalPaymentsReceived: 0,
           totalOutstandingPayments: 0,
@@ -114,6 +123,23 @@ export async function getTeacherPayments() {
     }
 
     console.log("Teacher assigned classes:", teacherDetails.assigned_classes);
+
+    // Get fee assignments for amount due calculation
+    const currentYear = new Date().getFullYear();
+    const { data: feeRows } = await supabase
+      .from("fees_assignments")
+      .select("amount_due, grade, parent_students(student_name)")
+      .in("grade", teacherDetails.assigned_classes)
+      .eq("year", currentYear)
+      .eq("status", "Active");
+
+    const feeMap = new Map<string, number>();
+    (feeRows || []).forEach((r: any) => {
+      const name = r.parent_students?.student_name;
+      if (name) {
+        feeMap.set(`${name}|${r.grade}`, Number(r.amount_due) || 0);
+      }
+    });
 
     // Get all students in teacher's assigned classes
     const { data: students } = await supabase
@@ -182,15 +208,19 @@ export async function getTeacherPayments() {
           : "",
         status:
           payment.status === "Approved"
-            ? "Confirmed"
+            ? "Approved"
             : payment.status === "Rejected"
             ? "Rejected"
             : "Pending",
         paymentProof: payment.proof_url || undefined,
+        amountDue: feeMap.get(`${payment.student_name}|${payment.grade}`) || 0,
       });
     });
 
-    console.log("Processed submitted payments count:", submittedPayments?.length || 0);
+    console.log(
+      "Processed submitted payments count:",
+      submittedPayments?.length || 0
+    );
 
     // Process approved payments
     approvedPayments?.forEach((payment) => {
@@ -202,12 +232,16 @@ export async function getTeacherPayments() {
         dateOfPayment: payment.approved_at
           ? new Date(payment.approved_at).toISOString().split("T")[0]
           : "",
-        status: "Confirmed",
+        status: "Approved",
         paymentProof: payment.proof_url || undefined,
+        amountDue: feeMap.get(`${payment.student_name}|${payment.grade}`) || 0,
       });
     });
 
-    console.log("Processed approved payments count:", approvedPayments?.length || 0);
+    console.log(
+      "Processed approved payments count:",
+      approvedPayments?.length || 0
+    );
 
     // Process rejected payments
     rejectedPayments?.forEach((payment) => {
@@ -221,14 +255,40 @@ export async function getTeacherPayments() {
           : "",
         status: "Rejected",
         paymentProof: payment.proof_url || undefined,
+        amountDue: feeMap.get(`${payment.student_name}|${payment.grade}`) || 0,
       });
     });
 
-    console.log("Processed rejected payments count:", rejectedPayments?.length || 0);
+    console.log(
+      "Processed rejected payments count:",
+      rejectedPayments?.length || 0
+    );
+
+    // Add students with no payments
+    const paymentStudentKeys = new Set(
+      payments.map((p) => `${p.studentName}|${p.className}`)
+    );
+
+    students.forEach((student) => {
+      const key = `${student.student_name}|${student.student_grade}`;
+      if (!paymentStudentKeys.has(key)) {
+        payments.push({
+          id: `unpaid-${student.id}`,
+          studentName: student.student_name,
+          className: student.student_grade,
+          amount: 0,
+          dateOfPayment: "",
+          status: "Unpaid",
+          paymentProof: undefined,
+          amountDue: feeMap.get(key) || 0,
+        });
+      }
+    });
+
     console.log("Total combined payments:", payments.length);
 
     // Calculate statistics
-    const confirmedPayments = payments.filter((p) => p.status === "Confirmed");
+    const confirmedPayments = payments.filter((p) => p.status === "Approved");
     const pendingPayments = payments.filter((p) => p.status === "Pending");
     const totalPaymentsReceived = confirmedPayments.reduce(
       (sum, p) => sum + p.amount,
@@ -245,20 +305,6 @@ export async function getTeacherPayments() {
     let partialPaymentsCount = pendingPayments.length;
     let fullPaymentsCount = 0;
     try {
-      const currentYear = new Date().getFullYear();
-      const { data: feeRows } = await supabase
-        .from("fees_assignments")
-        .select("amount_due, grade, parent_students(student_name)")
-        .in("grade", teacherDetails.assigned_classes)
-        .eq("year", currentYear)
-        .eq("status", "Active");
-      const feeMap = new Map<string, number>();
-      (feeRows || []).forEach((r: any) => {
-        const name = r.parent_students?.student_name;
-        if (name) {
-          feeMap.set(`${name}|${r.grade}`, Number(r.amount_due) || 0);
-        }
-      });
       const { data: approvedRows } = await supabase
         .from("approved_payments")
         .select("student_name, grade, amount, approved_at")
@@ -312,19 +358,26 @@ export async function getTeacherPayments() {
       totalToReceive: totalOutstandingPayments + totalPaymentsReceived,
       partialPaymentsCount,
       fullPaymentsCount,
-      percentagePaidInFull: totalStudents > 0 ? (fullPaymentsCount / totalStudents) * 100 : 0,
+      percentagePaidInFull:
+        totalStudents > 0 ? (fullPaymentsCount / totalStudents) * 100 : 0,
     };
 
     console.log("Final stats:", stats);
     console.log("Final payments count:", payments.length);
 
+    let classTotals: any[] = [];
     try {
       const currentYear = new Date().getFullYear();
-      const { data: classTotals, error } = await supabase
+      const { data: ct, error } = await supabase
         .from("v_totals_by_class")
         .select("grade, year, to_receive, received, outstanding")
         .in("grade", teacherDetails.assigned_classes)
         .eq("year", currentYear);
+
+      if (!error && ct) {
+        classTotals = ct;
+      }
+
       if (!error && classTotals && classTotals.length > 0) {
         const totalReceivedFromView = classTotals.reduce(
           (sum: number, r: any) => sum + Number(r.received || 0),
@@ -409,8 +462,10 @@ export async function getTeacherPayments() {
           );
         }
 
-        const finalToReceive = toReceiveSumYear > 0 ? toReceiveSumYear : toReceiveSumAll;
-        const finalReceived = receivedSumYear > 0 ? receivedSumYear : receivedSumAll;
+        const finalToReceive =
+          toReceiveSumYear > 0 ? toReceiveSumYear : toReceiveSumAll;
+        const finalReceived =
+          receivedSumYear > 0 ? receivedSumYear : receivedSumAll;
 
         stats = {
           ...stats,
@@ -421,20 +476,28 @@ export async function getTeacherPayments() {
 
         if (students.length === 0) {
           const distinctStudentsYear = new Set<string>();
-          (toReceiveRowsYear || []).forEach((r: any) => distinctStudentsYear.add(r.student_id));
+          (toReceiveRowsYear || []).forEach((r: any) =>
+            distinctStudentsYear.add(r.student_id)
+          );
           let totalStudentsCount = distinctStudentsYear.size;
           if (totalStudentsCount === 0) {
             const distinctStudentsAll = new Set<string>();
-            toReceiveRowsAll.forEach((r: any) => distinctStudentsAll.add(r.student_id));
+            toReceiveRowsAll.forEach((r: any) =>
+              distinctStudentsAll.add(r.student_id)
+            );
             totalStudentsCount = distinctStudentsAll.size;
           }
 
           const distinctPaidYear = new Set<string>();
-          receivedYearRows.forEach((r: any) => distinctPaidYear.add(`${r.student_name}|${r.grade}`));
+          receivedYearRows.forEach((r: any) =>
+            distinctPaidYear.add(`${r.student_name}|${r.grade}`)
+          );
           let paidCount = distinctPaidYear.size;
           if (paidCount === 0) {
             const distinctPaidAll = new Set<string>();
-            receivedAllRows.forEach((r: any) => distinctPaidAll.add(`${r.student_name}|${r.grade}`));
+            receivedAllRows.forEach((r: any) =>
+              distinctPaidAll.add(`${r.student_name}|${r.grade}`)
+            );
             paidCount = distinctPaidAll.size;
           }
 
@@ -442,13 +505,18 @@ export async function getTeacherPayments() {
             ...stats,
             studentsPaidCount: paidCount,
             totalStudents: totalStudentsCount,
-            percentagePaidInFull: totalStudentsCount > 0 ? (paidCount / totalStudentsCount) * 100 : 0,
+            percentagePaidInFull:
+              totalStudentsCount > 0
+                ? (paidCount / totalStudentsCount) * 100
+                : 0,
           };
         }
       }
     } catch {}
 
     return {
+      assignedClasses: teacherDetails.assigned_classes || [],
+      classTotals: classTotals || [],
       payments: payments.sort(
         (a, b) =>
           new Date(b.dateOfPayment).getTime() -
@@ -464,12 +532,14 @@ export async function getTeacherPayments() {
 
 export async function getTeacherPaymentById(paymentId: string) {
   try {
-    const supabase = createServerActionClient({ cookies })
-    
+    const supabase = createServerActionClient({ cookies });
+
     // Get current teacher's profile and assigned classes
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
-      return null
+      return null;
     }
 
     // Get teacher details with assigned classes
@@ -477,21 +547,21 @@ export async function getTeacherPaymentById(paymentId: string) {
       .from("teacher_details")
       .select("assigned_classes")
       .eq("user_id", user.id)
-      .single()
+      .single();
 
     if (!teacherDetails?.assigned_classes) {
-      return null
+      return null;
     }
 
     // Try to find payment in all tables
-    let payment: TeacherPayment | null = null
+    let payment: TeacherPayment | null = null;
 
     // Check submitpayment table
     const { data: submittedPayment } = await supabase
       .from("submitpayment")
       .select("id, student_name, grade, amount, created_at, status, proof_url")
       .eq("id", paymentId)
-      .single()
+      .single();
 
     if (submittedPayment) {
       payment = {
@@ -499,19 +569,28 @@ export async function getTeacherPaymentById(paymentId: string) {
         studentName: submittedPayment.student_name,
         className: submittedPayment.grade,
         amount: Number(submittedPayment.amount) || 0,
-        dateOfPayment: submittedPayment.created_at ? new Date(submittedPayment.created_at).toISOString().split('T')[0] : '',
-        status: submittedPayment.status === 'Approved' ? 'Confirmed' : submittedPayment.status === 'Rejected' ? 'Rejected' : 'Pending',
-        paymentProof: submittedPayment.proof_url || undefined
-      }
+        dateOfPayment: submittedPayment.created_at
+          ? new Date(submittedPayment.created_at).toISOString().split("T")[0]
+          : "",
+        status:
+          submittedPayment.status === "Approved"
+            ? "Approved"
+            : submittedPayment.status === "Rejected"
+            ? "Rejected"
+            : "Pending",
+        paymentProof: submittedPayment.proof_url || undefined,
+      };
     }
 
     // Check approved_payments table
     if (!payment) {
       const { data: approvedPayment } = await supabase
         .from("approved_payments")
-        .select("submitpayment_id, student_name, grade, amount, approved_at, proof_url")
+        .select(
+          "submitpayment_id, student_name, grade, amount, approved_at, proof_url"
+        )
         .eq("submitpayment_id", paymentId)
-        .single()
+        .single();
 
       if (approvedPayment) {
         payment = {
@@ -519,10 +598,12 @@ export async function getTeacherPaymentById(paymentId: string) {
           studentName: approvedPayment.student_name,
           className: approvedPayment.grade,
           amount: Number(approvedPayment.amount) || 0,
-          dateOfPayment: approvedPayment.approved_at ? new Date(approvedPayment.approved_at).toISOString().split('T')[0] : '',
-          status: 'Confirmed',
-          paymentProof: approvedPayment.proof_url || undefined
-        }
+          dateOfPayment: approvedPayment.approved_at
+            ? new Date(approvedPayment.approved_at).toISOString().split("T")[0]
+            : "",
+          status: "Approved",
+          paymentProof: approvedPayment.proof_url || undefined,
+        };
       }
     }
 
@@ -530,9 +611,11 @@ export async function getTeacherPaymentById(paymentId: string) {
     if (!payment) {
       const { data: rejectedPayment } = await supabase
         .from("rejected_payments")
-        .select("submitpayment_id, student_name, grade, amount, rejected_at, proof_url")
+        .select(
+          "submitpayment_id, student_name, grade, amount, rejected_at, proof_url"
+        )
         .eq("submitpayment_id", paymentId)
-        .single()
+        .single();
 
       if (rejectedPayment) {
         payment = {
@@ -540,22 +623,26 @@ export async function getTeacherPaymentById(paymentId: string) {
           studentName: rejectedPayment.student_name,
           className: rejectedPayment.grade,
           amount: Number(rejectedPayment.amount) || 0,
-          dateOfPayment: rejectedPayment.rejected_at ? new Date(rejectedPayment.rejected_at).toISOString().split('T')[0] : '',
-          status: 'Rejected',
-          paymentProof: rejectedPayment.proof_url || undefined
-        }
+          dateOfPayment: rejectedPayment.rejected_at
+            ? new Date(rejectedPayment.rejected_at).toISOString().split("T")[0]
+            : "",
+          status: "Rejected",
+          paymentProof: rejectedPayment.proof_url || undefined,
+        };
       }
     }
 
     // Verify the payment belongs to teacher's assigned classes
-    if (payment && !teacherDetails.assigned_classes.includes(payment.className)) {
-      return null
+    if (
+      payment &&
+      !teacherDetails.assigned_classes.includes(payment.className)
+    ) {
+      return null;
     }
 
-    return payment
-
+    return payment;
   } catch (error) {
-    console.error("Error fetching teacher payment by ID:", error)
-    throw error
+    console.error("Error fetching teacher payment by ID:", error);
+    throw error;
   }
 }

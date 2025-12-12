@@ -1,90 +1,111 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { useRouter } from "next/navigation"
-import { Users, UserCheck, UserX, Plus, Search } from "lucide-react"
-import { toggleStaffStatus } from "@/app/admin/actions"
-import LogoutButton from "@/components/logout-button"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
+import { Users, UserCheck, UserX, Plus, Search } from "lucide-react";
+import { toggleStaffStatus } from "@/app/admin/actions";
+import LogoutButton from "@/components/logout-button";
 
 interface StaffMember {
-  id: string
-  email: string
-  full_name: string
-  phone: string
-  role: string
-  is_active: boolean
-  created_at: string
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+  assigned_classes?: string[];
 }
 
 export default function AdminDashboardPage() {
-  const router = useRouter()
-  const supabase = createClientComponentClient()
+  const router = useRouter();
+  const supabase = createClientComponentClient();
 
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
-  const [filteredStaff, setFilteredStaff] = useState<StaffMember[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [roleFilter, setRoleFilter] = useState<string>("all")
-  const [isLoading, setIsLoading] = useState(true)
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [filteredStaff, setFilteredStaff] = useState<StaffMember[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     totalStaff: 0,
     activeStaff: 0,
     inactiveStaff: 0,
     teachers: 0,
     treasurers: 0,
-  })
+  });
 
   useEffect(() => {
-    checkAdminAccess()
-    fetchStaffMembers()
-  }, [])
+    checkAdminAccess();
+    fetchStaffMembers();
+  }, []);
 
   useEffect(() => {
-    filterStaff()
-  }, [searchTerm, roleFilter, staffMembers])
+    filterStaff();
+  }, [searchTerm, roleFilter, staffMembers]);
 
   const checkAdminAccess = async () => {
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser();
 
     if (!user) {
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
 
     if (!profile || profile.role !== "admin") {
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
-  }
+  };
 
   const fetchStaffMembers = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
 
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .in("role", ["teacher", "treasurer"])
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching staff:", error)
-      setIsLoading(false)
-      return
+      console.error("Error fetching staff:", error);
+      setIsLoading(false);
+      return;
     }
 
-    setStaffMembers(data || [])
+    // Fetch teacher details for classes
+    const { data: teacherDetails } = await supabase
+      .from("teacher_details")
+      .select("user_id, assigned_classes");
+
+    const detailsMap = new Map<string, string[]>();
+    teacherDetails?.forEach((d) => {
+      detailsMap.set(d.user_id, d.assigned_classes);
+    });
+
+    const staffWithClasses = (data || []).map((s) => ({
+      ...s,
+      assigned_classes:
+        s.role === "teacher" ? detailsMap.get(s.id) || [] : undefined,
+    }));
+
+    setStaffMembers(staffWithClasses);
 
     // Calculate stats
-    const total = data?.length || 0
-    const active = data?.filter((s) => s.is_active).length || 0
-    const inactive = total - active
-    const teachers = data?.filter((s) => s.role === "teacher").length || 0
-    const treasurers = data?.filter((s) => s.role === "treasurer").length || 0
+    const total = data?.length || 0;
+    const active = data?.filter((s) => s.is_active).length || 0;
+    const inactive = total - active;
+    const teachers = data?.filter((s) => s.role === "teacher").length || 0;
+    const treasurers = data?.filter((s) => s.role === "treasurer").length || 0;
 
     setStats({
       totalStaff: total,
@@ -92,43 +113,46 @@ export default function AdminDashboardPage() {
       inactiveStaff: inactive,
       teachers,
       treasurers,
-    })
+    });
 
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
 
   const filterStaff = () => {
-    let filtered = staffMembers
+    let filtered = staffMembers;
 
     // Filter by role
     if (roleFilter !== "all") {
-      filtered = filtered.filter((staff) => staff.role === roleFilter)
+      filtered = filtered.filter((staff) => staff.role === roleFilter);
     }
 
     // Filter by search term
     if (searchTerm) {
-      const term = searchTerm.toLowerCase()
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (staff) =>
           staff.full_name.toLowerCase().includes(term) ||
-          staff.email.toLowerCase().includes(term),
-      )
+          staff.email.toLowerCase().includes(term)
+      );
     }
 
-    setFilteredStaff(filtered)
-  }
+    setFilteredStaff(filtered);
+  };
 
-  const handleToggleStatus = async (staffId: string, currentStatus: boolean) => {
-    const result = await toggleStaffStatus(staffId, currentStatus)
+  const handleToggleStatus = async (
+    staffId: string,
+    currentStatus: boolean
+  ) => {
+    const result = await toggleStaffStatus(staffId, currentStatus);
 
     if (result.error) {
-      alert(result.error)
-      return
+      alert(result.error);
+      return;
     }
 
     // Refresh data
-    fetchStaffMembers()
-  }
+    fetchStaffMembers();
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -137,10 +161,21 @@ export default function AdminDashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
-              <p className="text-sm text-slate-600 mt-1">Manage staff members and system settings</p>
+              <h1 className="text-2xl font-bold text-slate-900">
+                Admin Dashboard
+              </h1>
+              <p className="text-sm text-slate-600 mt-1">
+                Manage staff members and system settings
+              </p>
             </div>
             <div className="flex items-center gap-4">
+              <Link
+                href="/admin/classes/new"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                Add Class
+              </Link>
               <Link
                 href="/admin/staff/new"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -160,8 +195,12 @@ export default function AdminDashboardPage() {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 font-medium">Total Staff</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{stats.totalStaff}</p>
+                <p className="text-sm text-slate-600 font-medium">
+                  Total Staff
+                </p>
+                <p className="text-3xl font-bold text-slate-900 mt-2">
+                  {stats.totalStaff}
+                </p>
               </div>
               <Users className="w-10 h-10 text-blue-500" />
             </div>
@@ -171,7 +210,9 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Active</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{stats.activeStaff}</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">
+                  {stats.activeStaff}
+                </p>
               </div>
               <UserCheck className="w-10 h-10 text-green-500" />
             </div>
@@ -181,7 +222,9 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Inactive</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">{stats.inactiveStaff}</p>
+                <p className="text-3xl font-bold text-red-600 mt-2">
+                  {stats.inactiveStaff}
+                </p>
               </div>
               <UserX className="w-10 h-10 text-red-500" />
             </div>
@@ -191,7 +234,9 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Teachers</p>
-                <p className="text-3xl font-bold text-purple-600 mt-2">{stats.teachers}</p>
+                <p className="text-3xl font-bold text-purple-600 mt-2">
+                  {stats.teachers}
+                </p>
               </div>
               <Users className="w-10 h-10 text-purple-500" />
             </div>
@@ -201,7 +246,9 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Treasurers</p>
-                <p className="text-3xl font-bold text-amber-600 mt-2">{stats.treasurers}</p>
+                <p className="text-3xl font-bold text-amber-600 mt-2">
+                  {stats.treasurers}
+                </p>
               </div>
               <Users className="w-10 h-10 text-amber-500" />
             </div>
@@ -249,6 +296,9 @@ export default function AdminDashboardPage() {
                     Role
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Assigned Classes
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -259,13 +309,19 @@ export default function AdminDashboardPage() {
               <tbody className="bg-white divide-y divide-slate-200">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-slate-500">
+                    <td
+                      colSpan={5}
+                      className="px-6 py-4 text-center text-slate-500"
+                    >
                       Loading staff members...
                     </td>
                   </tr>
                 ) : filteredStaff.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-slate-500">
+                    <td
+                      colSpan={5}
+                      className="px-6 py-4 text-center text-slate-500"
+                    >
                       No staff members found.
                     </td>
                   </tr>
@@ -273,36 +329,71 @@ export default function AdminDashboardPage() {
                   filteredStaff.map((staff) => (
                     <tr key={staff.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-slate-900">{staff.full_name}</div>
-                        <div className="text-sm text-slate-500">{staff.phone || "N/A"}</div>
+                        <div className="text-sm font-medium text-slate-900">
+                          {staff.full_name}
+                        </div>
+                        <div className="text-sm text-slate-500">
+                          {staff.phone || "N/A"}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{staff.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                        {staff.email}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            staff.role === "teacher" ? "bg-purple-100 text-purple-800" : "bg-amber-100 text-amber-800"
+                            staff.role === "teacher"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-amber-100 text-amber-800"
                           }`}
                         >
-                          {staff.role.charAt(0).toUpperCase() + staff.role.slice(1)}
+                          {staff.role.charAt(0).toUpperCase() +
+                            staff.role.slice(1)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                        {staff.assigned_classes &&
+                        staff.assigned_classes.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {staff.assigned_classes.map((cls, idx) => (
+                              <span
+                                key={idx}
+                                className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs border border-slate-200"
+                              >
+                                {cls}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            staff.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                            staff.is_active
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
                           }`}
                         >
                           {staff.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link href={`/admin/staff/${staff.id}`} className="text-blue-600 hover:text-blue-900 mr-4">
+                        <Link
+                          href={`/admin/staff/${staff.id}`}
+                          className="text-blue-600 hover:text-blue-900 mr-4"
+                        >
                           Edit
                         </Link>
                         <button
-                          onClick={() => handleToggleStatus(staff.id, staff.is_active)}
+                          onClick={() =>
+                            handleToggleStatus(staff.id, staff.is_active)
+                          }
                           className={`${
-                            staff.is_active ? "text-red-600 hover:text-red-900" : "text-green-600 hover:text-green-900"
+                            staff.is_active
+                              ? "text-red-600 hover:text-red-900"
+                              : "text-green-600 hover:text-green-900"
                           }`}
                         >
                           {staff.is_active ? "Deactivate" : "Activate"}
@@ -315,7 +406,76 @@ export default function AdminDashboardPage() {
             </table>
           </div>
         </div>
+        {/* Class Account Assignments Summary */}
+        <div className="mt-8 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">
+            Class Account Assignments
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {["1", "2", "3", "4", "5", "6"].map((gradeNum) => {
+              const gradeLabel = `Grade ${gradeNum}`;
+              const assignedTeachers = staffMembers.filter(
+                (s) =>
+                  s.role === "teacher" &&
+                  s.assigned_classes?.some((c) => c.startsWith(gradeNum))
+              );
+
+              return (
+                <div
+                  key={gradeNum}
+                  className="border rounded-lg p-4 bg-slate-50"
+                >
+                  <p className="font-semibold text-slate-700 mb-2">
+                    {gradeLabel}
+                  </p>
+                  {assignedTeachers.length > 0 ? (
+                    <div className="space-y-3">
+                      {assignedTeachers.map((teacher) => (
+                        <div
+                          key={teacher.id}
+                          className="border-b border-slate-200 last:border-0 pb-2 last:pb-0"
+                        >
+                          <p className="text-sm font-medium text-slate-900">
+                            {teacher.full_name}
+                          </p>
+                          <p className="text-xs text-slate-500 break-all">
+                            {teacher.email}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {teacher.assigned_classes
+                              ?.filter((c) => c.startsWith(gradeNum))
+                              .map((c) => (
+                                <span
+                                  key={c}
+                                  className="text-[10px] bg-white border border-slate-200 px-1 rounded"
+                                >
+                                  {c}
+                                </span>
+                              ))}
+                          </div>
+                          <span
+                            className={`inline-block mt-1 px-2 py-0.5 text-[10px] rounded-full ${
+                              teacher.is_active
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {teacher.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400 italic">
+                      No teacher assigned
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </main>
     </div>
-  )
+  );
 }

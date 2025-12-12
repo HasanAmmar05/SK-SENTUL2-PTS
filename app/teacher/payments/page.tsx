@@ -1,79 +1,83 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { TeacherSidebar } from "@/components/teacher-sidebar"
-import { Search, Circle, Loader2 } from "lucide-react"
-import { getTeacherPayments, TeacherPayment } from "@/app/teacher/actions"
-import { Button } from "@/components/ui/button"
+import type React from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { TeacherSidebar } from "@/components/teacher-sidebar";
+import { Search, Circle, Loader2 } from "lucide-react";
+import { getTeacherPayments, TeacherPayment } from "@/app/teacher/actions";
+import { Button } from "@/components/ui/button";
 
 export default function TeacherClassPaymentsPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [payments, setPayments] = useState<TeacherPayment[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const itemsPerPage = 10
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [payments, setPayments] = useState<TeacherPayment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const itemsPerPage = 10;
 
   useEffect(() => {
-    fetchPayments()
-  }, [])
+    fetchPayments();
+  }, []);
 
   const fetchPayments = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const result = await getTeacherPayments()
-      setPayments(result.payments)
+      setLoading(true);
+      setError(null);
+      const result = await getTeacherPayments();
+      setPayments(result.payments);
     } catch (err) {
-      console.error("Failed to fetch payments:", err)
-      setError("Failed to load payments. Please try again.")
+      console.error("Failed to fetch payments:", err);
+      setError("Failed to load payments. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const filteredPayments = payments.filter(
     (payment) =>
       payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.className.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      payment.className.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentPayments = filteredPayments.slice(startIndex, endIndex)
+  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPayments = filteredPayments.slice(startIndex, endIndex);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value)
-    setCurrentPage(1) // Reset to first page on search
-  }
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset to first page on search
+  };
 
   const handlePreviousPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage - 1)
+      setCurrentPage(currentPage - 1);
     }
-  }
+  };
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1)
+      setCurrentPage(currentPage + 1);
     }
-  }
+  };
 
-  const getStatusColors = (status: "Confirmed" | "Pending" | "Rejected") => {
+  const getStatusColors = (
+    status: "Approved" | "Pending" | "Rejected" | "Unpaid"
+  ) => {
     switch (status) {
-      case "Confirmed":
-        return "bg-green-100 text-green-800"
+      case "Approved":
+        return "bg-green-100 text-green-800";
       case "Pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "Rejected":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
+      case "Unpaid":
+        return "bg-slate-100 text-slate-600";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -84,13 +88,15 @@ export default function TeacherClassPaymentsPage() {
             <div className="max-w-5xl mx-auto flex items-center justify-center h-64">
               <div className="flex items-center gap-3">
                 <Loader2 className="h-6 w-6 animate-spin text-[var(--primary-color-teacher)]" />
-                <span className="text-[var(--text-primary-teacher)]">Loading payments...</span>
+                <span className="text-[var(--text-primary-teacher)]">
+                  Loading payments...
+                </span>
               </div>
             </div>
           </main>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -103,14 +109,12 @@ export default function TeacherClassPaymentsPage() {
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                 <p className="text-red-800">{error}</p>
               </div>
-              <Button onClick={fetchPayments}>
-                Retry
-              </Button>
+              <Button onClick={fetchPayments}>Retry</Button>
             </div>
           </main>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -120,10 +124,14 @@ export default function TeacherClassPaymentsPage() {
         <main className="flex-1 bg-[var(--background-color-teacher)] p-8">
           <div className="max-w-5xl mx-auto">
             <header className="mb-8">
-              <h1 className="text-[var(--text-primary-teacher)] text-3xl font-bold leading-tight">Class Payments</h1>
+              <h1 className="text-[var(--text-primary-teacher)] text-3xl font-bold leading-tight">
+                Class Payments
+              </h1>
             </header>
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-[var(--text-primary-teacher)] text-xl font-semibold leading-tight">All Payments</h2>
+              <h2 className="text-[var(--text-primary-teacher)] text-xl font-semibold leading-tight">
+                All Payments
+              </h2>
               <div className="relative">
                 <input
                   className="w-64 rounded-lg border-[var(--border-color-teacher)] py-2 pl-10 pr-4 text-sm focus:border-[var(--primary-color-teacher)] focus:ring-[var(--primary-color-teacher)]"
@@ -196,14 +204,19 @@ export default function TeacherClassPaymentsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColors(payment.status)}`}
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColors(
+                            payment.status
+                          )}`}
                         >
                           <Circle className="mr-1.5 h-2.5 w-2.5 fill-current" />
                           {payment.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link href={`/teacher/payment-details/${payment.id}`} passHref>
+                        <Link
+                          href={`/teacher/payment-details/${payment.id}`}
+                          passHref
+                        >
                           <Button variant="outline" size="sm">
                             View Details
                           </Button>
@@ -216,7 +229,8 @@ export default function TeacherClassPaymentsPage() {
             </div>
             <div className="mt-6 flex items-center justify-between">
               <p className="text-sm text-[var(--text-secondary-teacher)]">
-                Showing {`${startIndex + 1}`} to {`${Math.min(endIndex, filteredPayments.length)}`} of{" "}
+                Showing {`${startIndex + 1}`} to{" "}
+                {`${Math.min(endIndex, filteredPayments.length)}`} of{" "}
                 {`${filteredPayments.length}`} results
               </p>
               <div className="flex items-center gap-x-2">
@@ -240,5 +254,5 @@ export default function TeacherClassPaymentsPage() {
         </main>
       </div>
     </div>
-  )
+  );
 }

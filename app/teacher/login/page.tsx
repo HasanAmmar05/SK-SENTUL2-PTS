@@ -118,13 +118,21 @@ export default function TeacherLoginPage() {
                 </button>
               </div>
             </form>
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-3">
               <Link
-                className="text-sm text-[var(--text-secondary-teacher)] hover:text-[var(--primary-color-teacher)] transition-colors"
+                className="block text-sm text-[var(--text-secondary-teacher)] hover:text-[var(--primary-color-teacher)] transition-colors"
                 href="#"
               >
                 Forgot password?
               </Link>
+              <div className="border-t border-slate-100 pt-3">
+                <Link
+                  className="block text-sm font-medium text-[var(--primary-color-teacher)] hover:text-blue-700 transition-colors"
+                  href="/teacher/class-login"
+                >
+                  Go to Class Unified Login
+                </Link>
+              </div>
             </div>
           </div>
         </main>

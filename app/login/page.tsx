@@ -1,80 +1,130 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { MainHeader } from "@/components/main-header"
-import { Badge, Lock, AlertCircle } from "lucide-react"
-import { validateMalaysianIC, getRedirectPathForRole } from "@/lib/auth-utils"
+import type React from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { MainHeader } from "@/components/main-header";
+import { Badge, Lock, AlertCircle } from "lucide-react";
+import { validateMalaysianIC, getRedirectPathForRole } from "@/lib/auth-utils";
 
 export default function UnifiedLoginPage() {
-  const router = useRouter()
-  const supabase = createClientComponentClient()
+  const router = useRouter();
+  const supabase = createClientComponentClient();
 
-  const [icNumber, setIcNumber] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsLoading(true)
-
-    // Validate IC number format
-    if (!validateMalaysianIC(icNumber)) {
-      setError("Invalid IC number format. Please enter a valid 12-digit Malaysian IC number.")
-      setIsLoading(false)
-      return
-    }
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
 
     try {
-      const cleanIC = icNumber.replace(/[\s-]/g, "")
+      const isEmail = identifier.includes("@");
 
-      // 1️⃣ Find the email linked to this IC
-      const { data: profile, error: icError } = await supabase
-        .from("profiles")
-        .select("email, ic_number, role, is_active, id")
-        .eq("ic_number", cleanIC)
-        .single()
+      if (isEmail) {
+        // --- EMAIL LOGIN FLOW (Staff/Admin) ---
 
-      if (icError || !profile) {
-        setError("IC number not found. Please check again.")
-        setIsLoading(false)
-        return
+        // 1️⃣ Authenticate using email and password
+        const { data: authData, error: authError } =
+          await supabase.auth.signInWithPassword({
+            email: identifier,
+            password,
+          });
+
+        if (authError) {
+          setError("Invalid email or password. Please try again.");
+          setIsLoading(false);
+          return;
+        }
+
+        // 2️⃣ Check account status
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, is_active")
+          .eq("id", authData.user?.id)
+          .single();
+
+        if (profile && !profile.is_active) {
+          setError(
+            "Your account has been deactivated. Please contact administrator."
+          );
+          await supabase.auth.signOut();
+          setIsLoading(false);
+          return;
+        }
+
+        // 3️⃣ Redirect based on role
+        if (profile) {
+          const redirectPath = getRedirectPathForRole(profile.role);
+          router.push(redirectPath);
+        } else {
+          router.push("/"); // Fallback
+        }
+      } else {
+        // --- IC LOGIN FLOW (Parents) ---
+
+        // Validate IC number format
+        if (!validateMalaysianIC(identifier)) {
+          setError(
+            "Invalid format. Please enter a valid 12-digit IC number or email address."
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        const cleanIC = identifier.replace(/[\s-]/g, "");
+
+        // 1️⃣ Find the email linked to this IC
+        const { data: profile, error: icError } = await supabase
+          .from("profiles")
+          .select("email, ic_number, role, is_active, id")
+          .eq("ic_number", cleanIC)
+          .single();
+
+        if (icError || !profile) {
+          setError("IC number not found. Please check again.");
+          setIsLoading(false);
+          return;
+        }
+
+        // 2️⃣ Authenticate using that email and provided password
+        const { data: authData, error: authError } =
+          await supabase.auth.signInWithPassword({
+            email: profile.email,
+            password,
+          });
+
+        if (authError) {
+          setError("Invalid password. Please try again.");
+          setIsLoading(false);
+          return;
+        }
+
+        // 3️⃣ Check account status
+        if (!profile.is_active) {
+          setError(
+            "Your account has been deactivated. Please contact administrator."
+          );
+          await supabase.auth.signOut();
+          setIsLoading(false);
+          return;
+        }
+
+        // 4️⃣ Redirect based on role
+        const redirectPath = getRedirectPathForRole(profile.role);
+        router.push(redirectPath);
       }
-
-      // 2️⃣ Authenticate using that email and provided password
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: profile.email,
-        password,
-      })
-
-      if (authError) {
-        setError("Invalid IC or password. Please try again.")
-        setIsLoading(false)
-        return
-      }
-
-      // 3️⃣ Check account status
-      if (!profile.is_active) {
-        setError("Your account has been deactivated. Please contact administrator.")
-        await supabase.auth.signOut()
-        setIsLoading(false)
-        return
-      }
-
-      // 4️⃣ Redirect based on role
-      const redirectPath = getRedirectPathForRole(profile.role)
-      router.push(redirectPath)
     } catch (err) {
-      console.error("Login error:", err)
-      setError("An unexpected error occurred. Please try again.")
-      setIsLoading(false)
+      console.error("Login error:", err);
+      setError("An unexpected error occurred. Please try again.");
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="relative flex min-h-screen flex-col group/design-root overflow-x-hidden bg-slate-100">
@@ -83,8 +133,12 @@ export default function UnifiedLoginPage() {
         <main className="flex flex-1 items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
           <div className="w-full max-w-md space-y-8 bg-white p-8 sm:p-10 rounded-xl shadow-2xl">
             <div>
-              <h2 className="text-center text-3xl font-bold tracking-tight text-slate-900">Welcome Back</h2>
-              <p className="mt-2 text-center text-sm text-slate-600">Sign in to access your account</p>
+              <h2 className="text-center text-3xl font-bold tracking-tight text-slate-900">
+                Welcome Back
+              </h2>
+              <p className="mt-2 text-center text-sm text-slate-600">
+                Sign in to access your account
+              </p>
             </div>
 
             {error && (
@@ -100,28 +154,35 @@ export default function UnifiedLoginPage() {
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-slate-700 pb-1.5" htmlFor="ic-number">
-                  IC Number (MyKad)
+                <label
+                  className="block text-sm font-medium text-slate-700 pb-1.5"
+                  htmlFor="identifier"
+                >
+                  IC Number or Email
                 </label>
                 <div className="flex items-center gap-2">
                   <Badge className="text-slate-400 w-5 h-5 flex-shrink-0" />
                   <input
                     className="form-input block w-full rounded-md border-slate-300 bg-slate-50 py-2 pr-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    id="ic-number"
-                    name="ic-number"
-                    placeholder="XXXXXX-XX-XXXX"
+                    id="identifier"
+                    name="identifier"
+                    placeholder="IC Number (Parents) or Email (Staff)"
                     required
                     type="text"
-                    value={icNumber}
-                    onChange={(e) => setIcNumber(e.target.value)}
-                    maxLength={14}
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                   />
                 </div>
-                <p className="mt-1 text-xs text-slate-500">Enter your 12-digit IC number (e.g., 900101-01-1234)</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Parents: Enter 12-digit IC. Staff: Enter Email.
+                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 pb-1.5" htmlFor="password">
+                <label
+                  className="block text-sm font-medium text-slate-700 pb-1.5"
+                  htmlFor="password"
+                >
                   Password
                 </label>
                 <div className="flex items-center gap-2">
@@ -141,7 +202,10 @@ export default function UnifiedLoginPage() {
 
               <div className="flex items-center justify-between">
                 <div className="text-sm">
-                  <Link className="font-medium text-blue-600 hover:text-blue-500" href="/forgot-password">
+                  <Link
+                    className="font-medium text-blue-600 hover:text-blue-500"
+                    href="/forgot-password"
+                  >
                     Forgot your password?
                   </Link>
                 </div>
@@ -156,30 +220,33 @@ export default function UnifiedLoginPage() {
                   {isLoading ? "Signing in..." : "Sign In"}
                 </button>
               </div>
-
-              
             </form>
             <div>
-                <button
-                  className="flex w-full justify-center rounded-md border border-transparent bg-orange-500 py-3 px-4 text-sm font-semibold text-white shadow-sm  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                  type="submit"
-                  onClick={() => router.push('/teacher/login')}
-                >
-                  {"Teacher Login"}
-                </button>
-              </div>
+              <button
+                className="flex w-full justify-center rounded-md border border-transparent bg-orange-500 py-3 px-4 text-sm font-semibold text-white shadow-sm  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                type="submit"
+                onClick={() => router.push("/teacher/login")}
+              >
+                {"Teacher Login"}
+              </button>
+            </div>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-2 text-slate-500">New parent?</span>
+                <span className="bg-white px-2 text-slate-500">
+                  New parent?
+                </span>
               </div>
             </div>
 
             <p className="text-center text-sm text-slate-600">
-              <Link className="font-medium text-blue-600 hover:text-blue-500" href="/register">
+              <Link
+                className="font-medium text-blue-600 hover:text-blue-500"
+                href="/register"
+              >
                 Register as a parent
               </Link>
             </p>
@@ -187,5 +254,5 @@ export default function UnifiedLoginPage() {
         </main>
       </div>
     </div>
-  )
+  );
 }
