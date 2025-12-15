@@ -86,6 +86,8 @@ function ReceiptContent() {
           return;
         }
         setAuthorized(true);
+      } else if (roleCheck.role === "treasurer") {
+        setAuthorized(true);
       } else {
         router.push("/");
         return;
