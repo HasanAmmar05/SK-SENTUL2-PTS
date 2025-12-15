@@ -4,12 +4,13 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { TeacherSidebar } from "@/components/teacher-sidebar";
-import { Search, Circle, Loader2 } from "lucide-react";
+import { Search, Circle, Loader2, Filter } from "lucide-react"; // Added Filter icon
 import { getTeacherPayments, TeacherPayment } from "@/app/teacher/actions";
 import { Button } from "@/components/ui/button";
 
 export default function TeacherClassPaymentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All"); // 1. Added status state
   const [currentPage, setCurrentPage] = useState(1);
   const [payments, setPayments] = useState<TeacherPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,11 +35,17 @@ export default function TeacherClassPaymentsPage() {
     }
   };
 
-  const filteredPayments = payments.filter(
-    (payment) =>
+  // 2. Updated filter logic
+  const filteredPayments = payments.filter((payment) => {
+    const matchesSearch =
       payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.className.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      payment.className.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = 
+      statusFilter === "All" || payment.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
 
   const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -47,7 +54,13 @@ export default function TeacherClassPaymentsPage() {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page on search
+    setCurrentPage(1); 
+  };
+
+  // New handler for status change
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setStatusFilter(e.target.value);
+    setCurrentPage(1);
   };
 
   const handlePreviousPage = () => {
@@ -128,23 +141,47 @@ export default function TeacherClassPaymentsPage() {
                 Class Payments
               </h1>
             </header>
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h2 className="text-[var(--text-primary-teacher)] text-xl font-semibold leading-tight">
                 All Payments
               </h2>
-              <div className="relative">
-                <input
-                  className="w-64 rounded-lg border-[var(--border-color-teacher)] py-2 pl-10 pr-4 text-sm focus:border-[var(--primary-color-teacher)] focus:ring-[var(--primary-color-teacher)]"
-                  placeholder="Search students or class..."
-                  type="text"
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                />
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--text-secondary-teacher)]">
-                  <Search className="w-5 h-5" />
+              
+              {/* 3. Updated Search and Filter Section */}
+              <div className="flex items-center gap-3">
+                {/* Status Filter Dropdown */}
+                <div className="relative">
+                  <select
+                    className="h-10 appearance-none rounded-lg border border-[var(--border-color-teacher)] bg-white py-2 pl-3 pr-8 text-sm focus:border-[var(--primary-color-teacher)] focus:ring-[var(--primary-color-teacher)] outline-none cursor-pointer"
+                    value={statusFilter}
+                    onChange={handleStatusChange}
+                  >
+                    <option value="All">All Status</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Unpaid">Unpaid</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--text-secondary-teacher)]">
+                    <Filter className="h-4 w-4" />
+                  </div>
+                </div>
+
+                {/* Search Input */}
+                <div className="relative">
+                  <input
+                    className="w-64 h-10 rounded-lg border border-[var(--border-color-teacher)] py-2 pl-10 pr-4 text-sm focus:border-[var(--primary-color-teacher)] focus:ring-[var(--primary-color-teacher)] outline-none"
+                    placeholder="Search students or class..."
+                    type="text"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                  />
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--text-secondary-teacher)]">
+                    <Search className="w-4 h-4" />
+                  </div>
                 </div>
               </div>
             </div>
+
             <div className="overflow-hidden rounded-xl border border-[var(--border-color-teacher)] bg-white shadow-sm">
               <table className="min-w-full divide-y divide-[var(--border-color-teacher)]">
                 <thead className="bg-gray-50 table-header">
@@ -188,50 +225,58 @@ export default function TeacherClassPaymentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-color-teacher)] bg-white">
-                  {currentPayments.map((payment) => (
-                    <tr key={payment.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-primary-teacher)]">
-                        {payment.studentName}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary-teacher)]">
-                        {payment.className}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary-teacher)]">
-                        RM{payment.amount.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary-teacher)]">
-                        {payment.dateOfPayment}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColors(
-                            payment.status
-                          )}`}
-                        >
-                          <Circle className="mr-1.5 h-2.5 w-2.5 fill-current" />
-                          {payment.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link
-                          href={`/teacher/payment-details/${payment.id}`}
-                          passHref
-                        >
-                          <Button variant="outline" size="sm">
-                            View Details
-                          </Button>
-                        </Link>
+                  {currentPayments.length > 0 ? (
+                    currentPayments.map((payment) => (
+                      <tr key={payment.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-primary-teacher)]">
+                          {payment.studentName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary-teacher)]">
+                          {payment.className}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary-teacher)]">
+                          RM{payment.amount.toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary-teacher)]">
+                          {payment.dateOfPayment}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColors(
+                              payment.status
+                            )}`}
+                          >
+                            <Circle className="mr-1.5 h-2.5 w-2.5 fill-current" />
+                            {payment.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <Link
+                            href={`/teacher/payment-details/${payment.id}`}
+                            passHref
+                          >
+                            <Button variant="outline" size="sm">
+                              View Details
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center text-[var(--text-secondary-teacher)]">
+                        No payments found matching your filters.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
             <div className="mt-6 flex items-center justify-between">
               <p className="text-sm text-[var(--text-secondary-teacher)]">
-                Showing {`${startIndex + 1}`} to{" "}
-                {`${Math.min(endIndex, filteredPayments.length)}`} of{" "}
-                {`${filteredPayments.length}`} results
+                Showing {filteredPayments.length > 0 ? startIndex + 1 : 0} to{" "}
+                {Math.min(endIndex, filteredPayments.length)} of{" "}
+                {filteredPayments.length} results
               </p>
               <div className="flex items-center gap-x-2">
                 <Button
@@ -244,7 +289,7 @@ export default function TeacherClassPaymentsPage() {
                 <Button
                   className="rounded-md border border-[var(--border-color-teacher)] px-3 py-1.5 text-sm text-[var(--text-secondary-teacher)] hover:bg-gray-100 disabled:opacity-50"
                   onClick={handleNextPage}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || totalPages === 0}
                 >
                   Next
                 </Button>
