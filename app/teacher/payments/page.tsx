@@ -159,7 +159,6 @@ export default function TeacherClassPaymentsPage() {
                     <option value="Approved">Approved</option>
                     <option value="Pending">Pending</option>
                     <option value="Rejected">Rejected</option>
-                    <option value="Unpaid">Unpaid</option>
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--text-secondary-teacher)]">
                     <Filter className="h-4 w-4" />
