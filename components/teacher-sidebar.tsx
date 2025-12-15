@@ -17,8 +17,8 @@ interface NavLink {
 const navLinks: NavLink[] = [
   { name: "Dashboard", href: "/teacher/dashboard", icon: Home },
   { name: "Payments", href: "/teacher/payments", icon: CreditCard },
-  { name: "Reports", href: "#", icon: BarChart2 },
-  { name: "Settings", href: "#", icon: Settings },
+  { name: "Cash Payment", href: "/teacher/cash-payment", icon: CreditCard },
+  
 ]
 
 const utilityLinks: NavLink[] = [

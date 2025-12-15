@@ -48,8 +48,8 @@ function TeacherDashboardContent() {
   const [minAmount, setMinAmount] = useState<number | "">("");
   const [maxAmount, setMaxAmount] = useState<number | "">("");
   const [rejectedChecked, setRejectedChecked] = useState(false);
-  const [partiallyPaidChecked, setPartiallyPaidChecked] = useState(false);
-  const [completelyPaidChecked, setCompletelyPaidChecked] = useState(false);
+  const [pendingChecked, setPendingChecked] = useState(false);
+  const [approvedChecked, setApprovedChecked] = useState(false);
   const [studentNameSearch, setStudentNameSearch] = useState("");
 
   // Handle class query param from unified login
@@ -140,8 +140,8 @@ function TeacherDashboardContent() {
     setMinAmount("");
     setMaxAmount("");
     setRejectedChecked(false);
-    setPartiallyPaidChecked(false);
-    setCompletelyPaidChecked(false);
+    setPendingChecked(false);
+    setApprovedChecked(false);
     setStudentNameSearch("");
     setSelectedClass(classOptions[0] || "");
   };
@@ -169,17 +169,12 @@ function TeacherDashboardContent() {
       // Status filter
       let statusMatch = true;
       if (paymentStatus) {
-        const statusMap: { [key: string]: string } = {
-          Approved: "full",
-          Pending: "partial",
-          Rejected: "rejected",
-        };
-        statusMatch = statusMap[payment.status] === paymentStatus;
+        statusMatch = payment.status === paymentStatus;
       } else {
         const activeFilters = [];
         if (rejectedChecked) activeFilters.push("Rejected");
-        if (partiallyPaidChecked) activeFilters.push("Pending");
-        if (completelyPaidChecked) activeFilters.push("Approved");
+        if (pendingChecked) activeFilters.push("Pending");
+        if (approvedChecked) activeFilters.push("Approved");
 
         if (activeFilters.length > 0) {
           statusMatch = activeFilters.includes(payment.status);
@@ -207,8 +202,8 @@ function TeacherDashboardContent() {
     minAmount,
     maxAmount,
     rejectedChecked,
-    partiallyPaidChecked,
-    completelyPaidChecked,
+    pendingChecked,
+    approvedChecked,
     studentNameSearch,
   ]);
 
@@ -421,25 +416,16 @@ function TeacherDashboardContent() {
           <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary-teacher)]">
             {student.className}
           </td>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium text-right">
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium text-left">
             RM{totalPaid.toFixed(2)}
           </td>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-600 font-medium text-right">
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-600 font-medium text-left">
             RM{remainingAmount.toFixed(2)}
           </td>
           <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary-teacher)]">
             {student.dateOfPayment}
           </td>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <span
-              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColors(
-                student.status
-              )}`}
-            >
-              {student.status}
-            </span>
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+          <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
             <Link href={`/teacher/payment-details/${student.id}`} passHref>
               <Button variant="outline" size="sm">
                 View Details
@@ -555,9 +541,9 @@ function TeacherDashboardContent() {
                       onChange={(e) => setPaymentStatus(e.target.value)}
                     >
                       <option value="">All Statuses</option>
-                      <option value="full">Approved</option>
-                      <option value="partial">Pending</option>
-                      <option value="rejected">Rejected</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Rejected">Rejected</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-2">
@@ -751,23 +737,19 @@ function TeacherDashboardContent() {
                       <input
                         className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 focus:ring-opacity-50"
                         type="checkbox"
-                        checked={partiallyPaidChecked}
-                        onChange={(e) =>
-                          setPartiallyPaidChecked(e.target.checked)
-                        }
+                        checked={pendingChecked}
+                        onChange={(e) => setPendingChecked(e.target.checked)}
                       />
-                      <span className="ml-2">Partially Paid</span>
+                      <span className="ml-2">Pending</span>
                     </label>
                     <label className="flex items-center text-sm text-slate-700">
                       <input
                         className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 focus:ring-opacity-50"
                         type="checkbox"
-                        checked={completelyPaidChecked}
-                        onChange={(e) =>
-                          setCompletelyPaidChecked(e.target.checked)
-                        }
+                        checked={approvedChecked}
+                        onChange={(e) => setApprovedChecked(e.target.checked)}
                       />
-                      <span className="ml-2">Completely Paid</span>
+                      <span className="ml-2">Approved</span>
                     </label>
                   </div>
                 </div>
@@ -790,13 +772,13 @@ function TeacherDashboardContent() {
                             Class Name
                           </th>
                           <th
-                            className="px-6 py-4 text-right text-slate-600 text-xs font-semibold uppercase tracking-wider"
+                            className="px-6 py-4 text-left text-slate-600 text-xs font-semibold uppercase tracking-wider"
                             scope="col"
                           >
                             Amount Paid
                           </th>
                           <th
-                            className="px-6 py-4 text-right text-slate-600 text-xs font-semibold uppercase tracking-wider"
+                            className="px-6 py-4 text-left text-slate-600 text-xs font-semibold uppercase tracking-wider"
                             scope="col"
                           >
                             Amount Remaining
@@ -806,12 +788,6 @@ function TeacherDashboardContent() {
                             scope="col"
                           >
                             Date of Payment
-                          </th>
-                          <th
-                            className="px-6 py-4 text-left text-slate-600 text-xs font-semibold uppercase tracking-wider"
-                            scope="col"
-                          >
-                            Payment Status
                           </th>
                           <th
                             className="px-6 py-4 text-left text-slate-600 text-xs font-semibold uppercase tracking-wider"
