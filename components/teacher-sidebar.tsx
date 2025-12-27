@@ -22,7 +22,6 @@ const navLinks: NavLink[] = [
 ]
 
 const utilityLinks: NavLink[] = [
-  { name: "Help", href: "#", icon: HelpCircle },
   { name: "Logout", href: "#", icon: LogOut },
 ]
 
