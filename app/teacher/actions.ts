@@ -3,6 +3,30 @@
 import { createServerActionClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 
+const legacyGradeMap: Record<string, string[]> = {
+  "1 Merbau": ["1A", "1"],
+  "1 Jati": ["1B"],
+  "2 Merbau": ["2A", "2"],
+  "2 Jati": ["2B"],
+  "3 Merbau": ["3A", "3"],
+  "3 Jati": ["3B"],
+  "4 Merbau": ["4A", "4"],
+  "4 Jati": ["4B"],
+  "5 Merbau": ["5A", "5"],
+  "5 Jati": ["5B"],
+  "6 Merbau": ["6A", "6"],
+  "6 Jati": ["6B"],
+};
+
+function getAllSearchGrades(assignedClasses: string[]) {
+  const grades = new Set(assignedClasses);
+  assignedClasses.forEach((c) => {
+    const legacy = legacyGradeMap[c];
+    if (legacy) legacy.forEach((l) => grades.add(l));
+  });
+  return Array.from(grades);
+}
+
 export interface TeacherPayment {
   id: string;
   studentName: string;
@@ -124,20 +148,53 @@ export async function getTeacherPayments() {
 
     console.log("Teacher assigned classes:", teacherDetails.assigned_classes);
 
+    const searchGrades = getAllSearchGrades(teacherDetails.assigned_classes);
+    console.log("Search grades (including legacy):", searchGrades);
+
     // Get fee assignments for amount due calculation
-    const currentYear = new Date().getFullYear();
+    // Removed year restriction to match treasurer dashboard logic
     const { data: feeRows } = await supabase
       .from("fees_assignments")
-      .select("amount_due, grade, parent_students(student_name)")
-      .in("grade", teacherDetails.assigned_classes)
-      .eq("year", currentYear)
+      .select(
+        "student_id, amount_due, grade, parent_students!fees_assignments_student_id_fkey(student_name)"
+      )
+      .in("grade", searchGrades)
       .eq("status", "Active");
 
     const feeMap = new Map<string, number>();
+    const feeMapById = new Map<string, number>();
+
     (feeRows || []).forEach((r: any) => {
+      if (r.student_id) {
+        const current = feeMapById.get(r.student_id) || 0;
+        feeMapById.set(r.student_id, current + (Number(r.amount_due) || 0));
+      }
+
       const name = r.parent_students?.student_name;
       if (name) {
-        feeMap.set(`${name}|${r.grade}`, Number(r.amount_due) || 0);
+        const normalizedName = name.toLowerCase().trim();
+        const normalizedGrade = r.grade;
+
+        // Key 1: Full Name + Full Grade
+        const k1 = `${normalizedName}|${normalizedGrade}`;
+        feeMap.set(k1, (feeMap.get(k1) || 0) + (Number(r.amount_due) || 0));
+
+        // Key 2: Full Name + Short Grade (e.g., "1")
+        const gradeParts = normalizedGrade.split(" ");
+        if (gradeParts.length > 0) {
+          const shortGrade = gradeParts[0];
+          const k2 = `${normalizedName}|${shortGrade}`;
+          feeMap.set(k2, (feeMap.get(k2) || 0) + (Number(r.amount_due) || 0));
+        }
+
+        // Key 3: Full Name + "Grade X Merbau"
+        const gradeWithPrefix = `grade ${normalizedGrade.toLowerCase()}`;
+        const k3 = `${normalizedName}|${gradeWithPrefix}`;
+        feeMap.set(k3, (feeMap.get(k3) || 0) + (Number(r.amount_due) || 0));
+
+        // Key 4: Name Only
+        const k4 = `NAME_ONLY:${normalizedName}`;
+        feeMap.set(k4, (feeMap.get(k4) || 0) + (Number(r.amount_due) || 0));
       }
     });
 
@@ -167,7 +224,7 @@ export async function getTeacherPayments() {
         "id, parent_id, student_name, grade, amount, created_at, status, proof_url"
       )
       .in("student_name", studentNames)
-      .in("grade", studentGrades);
+      .in("grade", searchGrades);
 
     console.log("Submitted payments found:", submittedPayments);
 
@@ -178,7 +235,7 @@ export async function getTeacherPayments() {
         "submitpayment_id, student_name, grade, amount, approved_at, proof_url"
       )
       .in("student_name", studentNames)
-      .in("grade", studentGrades);
+      .in("grade", searchGrades);
 
     console.log("Approved payments found:", approvedPayments);
 
@@ -189,15 +246,52 @@ export async function getTeacherPayments() {
         "submitpayment_id, student_name, grade, amount, rejected_at, proof_url"
       )
       .in("student_name", studentNames)
-      .in("grade", studentGrades);
+      .in("grade", searchGrades);
 
     console.log("Rejected payments found:", rejectedPayments);
 
     // Combine all payments into unified format
     const payments: TeacherPayment[] = [];
 
+    const studentNameIdMap = new Map<string, string>();
+    students.forEach((s) => studentNameIdMap.set(s.student_name, s.id));
+
+    // Helper to find due amount using robust matching
+    const getDueAmount = (
+      studentName: string,
+      grade: string,
+      studentId?: string
+    ) => {
+      if (studentId) {
+        const due = feeMapById.get(studentId);
+        if (due !== undefined) return due;
+      }
+
+      const normalizedName = studentName.toLowerCase().trim();
+      const normalizedKey = `${normalizedName}|${grade}`;
+
+      // Try 1: Exact match
+      let due = feeMap.get(normalizedKey) || 0;
+
+      // Try 2: Lowercase match
+      if (!due) due = feeMap.get(normalizedKey.toLowerCase());
+
+      // Try 3: Strip "Grade " prefix
+      if (!due && grade.toLowerCase().startsWith("grade ")) {
+        const strippedGrade = grade.toLowerCase().replace("grade ", "").trim();
+        const keyStripped = `${normalizedName}|${strippedGrade}`;
+        due = feeMap.get(keyStripped) || 0;
+      }
+
+      // Try 4: Name Only
+      if (!due) due = feeMap.get(`NAME_ONLY:${normalizedName}`) || 0;
+
+      return due;
+    };
+
     // Process submitted payments
     submittedPayments?.forEach((payment) => {
+      const sId = studentNameIdMap.get(payment.student_name);
       payments.push({
         id: payment.id,
         studentName: payment.student_name,
@@ -213,7 +307,7 @@ export async function getTeacherPayments() {
             ? "Rejected"
             : "Pending",
         paymentProof: payment.proof_url || undefined,
-        amountDue: feeMap.get(`${payment.student_name}|${payment.grade}`) || 0,
+        amountDue: getDueAmount(payment.student_name, payment.grade, sId),
       });
     });
 
@@ -224,6 +318,7 @@ export async function getTeacherPayments() {
 
     // Process approved payments
     approvedPayments?.forEach((payment) => {
+      const sId = studentNameIdMap.get(payment.student_name);
       payments.push({
         id: payment.submitpayment_id,
         studentName: payment.student_name,
@@ -234,7 +329,7 @@ export async function getTeacherPayments() {
           : "",
         status: "Approved",
         paymentProof: payment.proof_url || undefined,
-        amountDue: feeMap.get(`${payment.student_name}|${payment.grade}`) || 0,
+        amountDue: getDueAmount(payment.student_name, payment.grade, sId),
       });
     });
 
@@ -245,6 +340,7 @@ export async function getTeacherPayments() {
 
     // Process rejected payments
     rejectedPayments?.forEach((payment) => {
+      const sId = studentNameIdMap.get(payment.student_name);
       payments.push({
         id: payment.submitpayment_id,
         studentName: payment.student_name,
@@ -255,7 +351,7 @@ export async function getTeacherPayments() {
           : "",
         status: "Rejected",
         paymentProof: payment.proof_url || undefined,
-        amountDue: feeMap.get(`${payment.student_name}|${payment.grade}`) || 0,
+        amountDue: getDueAmount(payment.student_name, payment.grade, sId),
       });
     });
 
@@ -280,7 +376,11 @@ export async function getTeacherPayments() {
           dateOfPayment: "",
           status: "Unpaid",
           paymentProof: undefined,
-          amountDue: feeMap.get(key) || 0,
+          amountDue: getDueAmount(
+            student.student_name,
+            student.student_grade,
+            student.id
+          ),
         });
       }
     });
@@ -305,25 +405,55 @@ export async function getTeacherPayments() {
     let partialPaymentsCount = pendingPayments.length;
     let fullPaymentsCount = 0;
     try {
-      const { data: approvedRows } = await supabase
-        .from("approved_payments")
-        .select("student_name, grade, amount, approved_at")
-        .in("grade", teacherDetails.assigned_classes)
-        .gte("approved_at", `${currentYear}-01-01`)
-        .lt("approved_at", `${currentYear + 1}-01-01`);
-      const paidMap = new Map<string, number>();
-      (approvedRows || []).forEach((r: any) => {
-        const k = `${r.student_name}|${r.grade}`;
-        paidMap.set(k, (paidMap.get(k) || 0) + (Number(r.amount) || 0));
+      // Calculate stats by iterating unique students using confirmedPayments (which includes all approved payments)
+      fullPaymentsCount = 0;
+      partialPaymentsCount = 0;
+      studentsPaidCount = 0;
+
+      students.forEach((student) => {
+        const due = feeMapById.get(student.id) || 0;
+        const normalizedName = student.student_name.toLowerCase().trim();
+        const normalizedGrade = student.student_grade; // e.g., "2 Merbau"
+
+        const paid = confirmedPayments.reduce((sum, p) => {
+          const rowName = p.studentName.toLowerCase().trim();
+          const rowGrade = p.className;
+          let isMatch = false;
+
+          if (rowName === normalizedName) {
+            // Check grade match (Exact, Short, Prefix, or Legacy map)
+            if (rowGrade === normalizedGrade) isMatch = true;
+            else if (
+              normalizedGrade.includes(rowGrade) ||
+              rowGrade.includes(normalizedGrade)
+            )
+              isMatch = true;
+            else {
+              // Check legacy
+              const legacy = legacyGradeMap[normalizedGrade];
+              if (legacy && legacy.includes(rowGrade)) isMatch = true;
+
+              // Check short grade "2" vs "2 Merbau"
+              if (
+                rowGrade.split(" ")[0] === normalizedGrade.split(" ")[0] ||
+                rowGrade.toLowerCase().replace("grade ", "").trim() ===
+                  normalizedGrade.toLowerCase()
+              )
+                isMatch = true;
+            }
+          }
+          return isMatch ? sum + p.amount : sum;
+        }, 0);
+
+        if (paid > 0) {
+          studentsPaidCount++;
+          if (due > 0) {
+            // Allow small float error or overpayment
+            if (paid >= due - 0.01) fullPaymentsCount++;
+            else partialPaymentsCount++;
+          }
+        }
       });
-      fullPaymentsCount = Array.from(feeMap.entries()).filter(([k, due]) => {
-        const paid = paidMap.get(k) || 0;
-        return Math.abs(paid - due) < 0.01;
-      }).length;
-      partialPaymentsCount = Array.from(feeMap.entries()).filter(([k, due]) => {
-        const paid = paidMap.get(k) || 0;
-        return paid > 0 && paid < due - 0.01;
-      }).length;
     } catch {}
 
     if (students.length === 0) {
@@ -332,14 +462,14 @@ export async function getTeacherPayments() {
         const { data: faCounts } = await supabase
           .from("fees_assignments")
           .select("student_id, grade, year")
-          .in("grade", teacherDetails.assigned_classes)
+          .in("grade", searchGrades)
           .eq("year", currentYear);
         totalStudents = faCounts ? faCounts.length : 0;
 
         const { data: approvedInClasses } = await supabase
           .from("approved_payments")
           .select("student_name, grade, approved_at")
-          .in("grade", teacherDetails.assigned_classes)
+          .in("grade", searchGrades)
           .gte("approved_at", `${currentYear}-01-01`)
           .lt("approved_at", `${currentYear + 1}-01-01`);
         studentsPaidCount = approvedInClasses
@@ -371,7 +501,7 @@ export async function getTeacherPayments() {
       const { data: ct, error } = await supabase
         .from("v_totals_by_class")
         .select("grade, year, to_receive, received, outstanding")
-        .in("grade", teacherDetails.assigned_classes)
+        .in("grade", searchGrades)
         .eq("year", currentYear);
 
       if (!error && ct) {
@@ -401,7 +531,7 @@ export async function getTeacherPayments() {
         const { data: toReceiveRowsYear } = await supabase
           .from("fees_assignments")
           .select("student_id, amount_due")
-          .in("grade", teacherDetails.assigned_classes)
+          .in("grade", searchGrades)
           .eq("year", currentYear)
           .eq("status", "Active");
         const toReceiveSumYear = (toReceiveRowsYear || []).reduce(
@@ -412,14 +542,14 @@ export async function getTeacherPayments() {
         const { data: receivedByApprovedAt } = await supabase
           .from("approved_payments")
           .select("student_name, grade, amount, approved_at")
-          .in("grade", teacherDetails.assigned_classes)
+          .in("grade", searchGrades)
           .gte("approved_at", `${currentYear}-01-01`)
           .lt("approved_at", `${currentYear + 1}-01-01`);
 
         const { data: receivedByCreatedAt } = await supabase
           .from("approved_payments")
           .select("student_name, grade, amount, created_at")
-          .in("grade", teacherDetails.assigned_classes)
+          .in("grade", searchGrades)
           .is("approved_at", null)
           .gte("created_at", `${currentYear}-01-01`)
           .lt("created_at", `${currentYear + 1}-01-01`);
@@ -439,7 +569,7 @@ export async function getTeacherPayments() {
           const { data: toReceiveAll } = await supabase
             .from("fees_assignments")
             .select("student_id, amount_due")
-            .in("grade", teacherDetails.assigned_classes)
+            .in("grade", searchGrades)
             .eq("status", "Active");
           toReceiveRowsAll = toReceiveAll || [];
           toReceiveSumAll = toReceiveRowsAll.reduce(
@@ -454,7 +584,7 @@ export async function getTeacherPayments() {
           const { data: receivedAll } = await supabase
             .from("approved_payments")
             .select("student_name, grade, amount")
-            .in("grade", teacherDetails.assigned_classes);
+            .in("grade", searchGrades);
           receivedAllRows = receivedAll || [];
           receivedSumAll = receivedAllRows.reduce(
             (sum: number, r: any) => sum + Number(r.amount || 0),

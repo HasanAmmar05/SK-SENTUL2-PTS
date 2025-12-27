@@ -160,9 +160,14 @@ export async function migrateClasses() {
       }
     }
 
-    // 4. Update Payments? (submitpayment, approved_payments, rejected_payments)
+    // 4. Update Payments? (submitpayment, approved_payments, rejected_payments, fees_assignments)
     // Payments have a 'grade' column. We should update them too to keep history consistent/searchable
-    const tables = ["submitpayment", "approved_payments", "rejected_payments"];
+    const tables = [
+      "submitpayment",
+      "approved_payments",
+      "rejected_payments",
+      "fees_assignments",
+    ];
     for (const table of tables) {
       const { data: payments } = await supabase.from(table).select("id, grade");
       if (payments) {
