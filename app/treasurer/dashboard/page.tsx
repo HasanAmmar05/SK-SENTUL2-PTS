@@ -343,11 +343,24 @@ function TreasurerDashboardContent() {
     let fullPaymentsCount = 0;
     let partialPaymentsCount = 0;
     studentsSet.forEach((k) => {
-      // k is "Name|Grade", split it to normalize name
+      // k is "Name|Grade" (from payments, which might have "Grade " prefix)
       const [name, grade] = k.split("|");
-      const normalizedKey = `${name.toLowerCase().trim()}|${grade}`;
-      const due = feesMap.get(normalizedKey) || 0;
+
+      const normalizedName = name.toLowerCase().trim();
+
+      // Calculate Due (Using same robust logic as table)
+      const normalizedKey = `${normalizedName}|${grade}`;
+      let due = feesMap.get(normalizedKey) || 0;
+      if (!due) due = feesMap.get(normalizedKey.toLowerCase());
+      if (!due && grade.toLowerCase().startsWith("grade ")) {
+        const strippedGrade = grade.toLowerCase().replace("grade ", "").trim();
+        const keyStripped = `${normalizedName}|${strippedGrade}`;
+        due = feesMap.get(keyStripped) || 0;
+      }
+      if (!due) due = feesMap.get(`NAME_ONLY:${normalizedName}`) || 0;
+
       const paid = approvedByStudent.get(k) || 0;
+
       if (due > 0) {
         if (Math.abs(paid - due) < 0.01) fullPaymentsCount += 1;
         else if (paid > 0 && paid < due - 0.01) partialPaymentsCount += 1;
