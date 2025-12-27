@@ -1,26 +1,33 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo } from "react"
-import Link from "next/link"
-import { MainHeader } from "@/components/main-header"
-import { supabase } from "@/lib/supabase-client"
-import AuthWrapper from "@/components/auth-wrapper"
-import { Filter, DollarSign, ArrowDown, Clock, CheckCircle, Search } from "lucide-react"
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { MainHeader } from "@/components/main-header";
+import { supabase } from "@/lib/supabase-client";
+import AuthWrapper from "@/components/auth-wrapper";
+import {
+  Filter,
+  DollarSign,
+  ArrowDown,
+  Clock,
+  CheckCircle,
+  Search,
+} from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 interface Payment {
-  id: string
-  student_name: string
-  grade: string
-  amount: number
-  created_at: string
-  status: "Pending" | "Approved" | "Rejected"
-  parent_id: string
+  id: string;
+  student_name: string;
+  grade: string;
+  amount: number;
+  created_at: string;
+  status: "Pending" | "Approved" | "Rejected";
+  parent_id: string;
 }
 
 interface Profile {
-  id: string
-  full_name: string
+  id: string;
+  full_name: string;
 }
 
 export default function TreasurerDashboardPage() {
@@ -28,190 +35,260 @@ export default function TreasurerDashboardPage() {
     <AuthWrapper>
       <TreasurerDashboardContent />
     </AuthWrapper>
-  )
+  );
 }
 
 function TreasurerDashboardContent() {
-  const [filterSectionVisible, setFilterSectionVisible] = useState(false)
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [paymentStatus, setPaymentStatus] = useState("")
-  const [gradeLevel, setGradeLevel] = useState("")
-  const [minAmount, setMinAmount] = useState<number | "">("")
-  const [maxAmount, setMaxAmount] = useState<number | "">("")
-  const [rejectedChecked, setRejectedChecked] = useState(false)
-  const [partiallyPaidChecked, setPartiallyPaidChecked] = useState(false)
-  const [completelyPaidChecked, setCompletelyPaidChecked] = useState(false)
-  const [parentNameSearch, setParentNameSearch] = useState("")
-  const [classFilter, setClassFilter] = useState("")
+  const [filterSectionVisible, setFilterSectionVisible] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [gradeLevel, setGradeLevel] = useState("");
+  const [minAmount, setMinAmount] = useState<number | "">("");
+  const [maxAmount, setMaxAmount] = useState<number | "">("");
+  const [rejectedChecked, setRejectedChecked] = useState(false);
+  const [partiallyPaidChecked, setPartiallyPaidChecked] = useState(false);
+  const [completelyPaidChecked, setCompletelyPaidChecked] = useState(false);
+  const [parentNameSearch, setParentNameSearch] = useState("");
+  const [classFilter, setClassFilter] = useState("");
 
-  const [payments, setPayments] = useState<Payment[]>([])
-  const [profiles, setProfiles] = useState<Profile[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showAll, setShowAll] = useState(false)
-  const [globalTotals, setGlobalTotals] = useState<{ year: number; to_receive: number; received: number; outstanding: number } | null>(null)
-  const [feesMap, setFeesMap] = useState<Map<string, number>>(new Map())
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+  const [globalTotals, setGlobalTotals] = useState<{
+    year: number;
+    to_receive: number;
+    received: number;
+    outstanding: number;
+  } | null>(null);
+  const [feesMap, setFeesMap] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
-  const fetchData = async () => {
-    setLoading(true)
+    const fetchData = async () => {
+      setLoading(true);
 
-    // Fetch all tables
-    const { data: pendingData } = await supabase
-      .from("submitpayment")
-      .select("*")
+      // Fetch all tables
+      const { data: pendingData } = await supabase
+        .from("submitpayment")
+        .select("*");
 
-    const { data: approvedData } = await supabase
-      .from("approved_payments")
-      .select("*")
+      const { data: approvedData } = await supabase
+        .from("approved_payments")
+        .select("*");
 
-    const { data: rejectedData } = await supabase
-      .from("rejected_payments")
-      .select("*")
+      const { data: rejectedData } = await supabase
+        .from("rejected_payments")
+        .select("*");
 
-    const { data: profilesData } = await supabase
-      .from("profiles")
-      .select("id, full_name")
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name");
 
-    // Use submitpayment ID for pending payments (their own ID)
-    const normalizedPending: Payment[] =
-      pendingData?.map((p) => ({
-        id: p.id,
-        student_name: p.student_name,
-        grade: p.grade,
-        amount: p.amount,
-        created_at: p.created_at,
-        status: "Pending",
-        parent_id: p.parent_id,
-      })) ?? [];
+      // Use submitpayment ID for pending payments (their own ID)
+      const normalizedPending: Payment[] =
+        pendingData?.map((p) => ({
+          id: p.id,
+          student_name: p.student_name,
+          grade: p.grade,
+          amount: p.amount,
+          created_at: p.created_at,
+          status: "Pending",
+          parent_id: p.parent_id,
+        })) ?? [];
 
-    // Use submitpayment_id for approved payments (reference to original)
-    const normalizedApproved: Payment[] =
-      approvedData?.map((p) => ({
-        id: p.submitpayment_id || p.id, // Use submitpayment_id for linking
-        student_name: p.student_name,
-        grade: p.grade,
-        amount: p.amount,
-        created_at: p.approved_at ?? p.created_at,
-        status: "Approved",
-        parent_id: p.parent_id,
-      })) ?? [];
+      // Use submitpayment_id for approved payments (reference to original)
+      const normalizedApproved: Payment[] =
+        approvedData?.map((p) => ({
+          id: p.submitpayment_id || p.id, // Use submitpayment_id for linking
+          student_name: p.student_name,
+          grade: p.grade,
+          amount: p.amount,
+          created_at: p.approved_at ?? p.created_at,
+          status: "Approved",
+          parent_id: p.parent_id,
+        })) ?? [];
 
-    // Use submitpayment_id for rejected payments (reference to original)
-    const normalizedRejected: Payment[] =
-      rejectedData?.map((p) => ({
-        id: p.submitpayment_id || p.id, // Use submitpayment_id for linking
-        student_name: p.student_name,
-        grade: p.grade,
-        amount: p.amount,
-        created_at: p.rejected_at ?? p.created_at,
-        status: "Rejected",
-        parent_id: p.parent_id,
-      })) ?? [];
+      // Use submitpayment_id for rejected payments (reference to original)
+      const normalizedRejected: Payment[] =
+        rejectedData?.map((p) => ({
+          id: p.submitpayment_id || p.id, // Use submitpayment_id for linking
+          student_name: p.student_name,
+          grade: p.grade,
+          amount: p.amount,
+          created_at: p.rejected_at ?? p.created_at,
+          status: "Rejected",
+          parent_id: p.parent_id,
+        })) ?? [];
 
-    const allPayments = [
-      ...normalizedPending,
-      ...normalizedApproved,
-      ...normalizedRejected,
-    ];
+      const allPayments = [
+        ...normalizedPending,
+        ...normalizedApproved,
+        ...normalizedRejected,
+      ];
 
-    setPayments(allPayments)
-    setProfiles(profilesData ?? [])
-    setLoading(false);
-  }
+      setPayments(allPayments);
+      setProfiles(profilesData ?? []);
+      setLoading(false);
+    };
 
-  fetchData()
-}, [])
+    fetchData();
+  }, []);
 
   useEffect(() => {
     const fetchGlobalTotals = async () => {
-      const year = new Date().getFullYear()
+      const year = new Date().getFullYear();
       const { data, error } = await supabase
         .from("v_totals_global")
         .select("year, to_receive, received, outstanding")
         .eq("year", year)
-        .limit(1)
+        .limit(1);
       if (!error && data && data.length > 0) {
         setGlobalTotals({
           year: data[0].year,
           to_receive: Number(data[0].to_receive || 0),
           received: Number(data[0].received || 0),
           outstanding: Number(data[0].outstanding || 0),
-        })
+        });
       }
-    }
-    fetchGlobalTotals()
-  }, [])
+    };
+    fetchGlobalTotals();
+  }, []);
 
   useEffect(() => {
     const fetchFeesAssignments = async () => {
-      const year = new Date().getFullYear()
+      // Fetch fees assignments and join with parent_students to get student name
       const { data } = await supabase
         .from("fees_assignments")
-        .select("amount_due, grade, parent_students(student_name)")
-        .eq("year", year)
-        .eq("status", "Active")
-      const map = new Map<string, number>()
-      ;(data || []).forEach((r: any) => {
-        const name = r.parent_students?.student_name
-        if (name) map.set(`${name}|${r.grade}`, Number(r.amount_due) || 0)
-      })
-      setFeesMap(map)
-    }
-    fetchFeesAssignments()
-  }, [])
+        .select(
+          "student_id, amount_due, grade, parent_students!fees_assignments_student_id_fkey(student_name)"
+        )
+        .eq("status", "Active");
+
+      const map = new Map<string, number>();
+
+      if (!data) return;
+
+      console.log("Fees Assignments Raw:", data); // Debug log
+
+      data.forEach((r: any) => {
+        // We have two strategies to match:
+        // 1. By student name + grade (for older payments)
+        // 2. By exact student_id (if payments had it, but they don't seem to)
+        // So we focus on robust name matching.
+
+        const studentName = r.parent_students?.student_name;
+        if (studentName) {
+          const normalizedName = studentName.toLowerCase().trim();
+          const normalizedGrade = r.grade; // e.g., "1 Merbau"
+
+          // Key 1: Full Name + Full Grade
+          const key1 = `${normalizedName}|${normalizedGrade}`;
+          map.set(key1, Number(r.amount_due) || 0);
+
+          // Key 2: Full Name + Short Grade (e.g., "1")
+          const gradeParts = normalizedGrade.split(" ");
+          if (gradeParts.length > 0) {
+            const shortGrade = gradeParts[0]; // "1"
+            const key2 = `${normalizedName}|${shortGrade}`;
+            // Only set if not already present (prefer full grade)
+            if (!map.has(key2)) {
+              map.set(key2, Number(r.amount_due) || 0);
+            }
+          }
+
+          // Key 3: Full Name + "Grade X Merbau" (Handle "Grade 2 Merbau" vs "2 Merbau")
+          // If payment says "Grade 2 Merbau" and fees says "2 Merbau"
+          const gradeWithPrefix = `grade ${normalizedGrade.toLowerCase()}`;
+          const key3 = `${normalizedName}|${gradeWithPrefix}`;
+          // e.g., "muntasir|grade 2 merbau"
+          if (!map.has(key3)) {
+            map.set(key3, Number(r.amount_due) || 0);
+          }
+
+          // Key 4: Name Only (Last Resort - if unique enough)
+          // This is dangerous if two students have same name, but good fallback
+          // We'll prefix with "NAME_ONLY:" to distinguish
+          const key4 = `NAME_ONLY:${normalizedName}`;
+          // If multiple students have same name, we might overwrite, which is a risk
+          // But usually better than showing 0.00
+          if (!map.has(key4)) {
+            map.set(key4, Number(r.amount_due) || 0);
+          }
+
+          // DEBUG: Log keys being set
+          // console.log(`Set Fees Key: [${key1}] = ${r.amount_due}`);
+        }
+      });
+
+      setFeesMap(map);
+    };
+    fetchFeesAssignments();
+  }, []);
 
   const getParentName = (parentId: string): string => {
-    const profile = profiles.find((p) => p.id === parentId)
-    return profile ? profile.full_name : "Unknown"
-  }
+    const profile = profiles.find((p) => p.id === parentId);
+    return profile ? profile.full_name : "Unknown";
+  };
 
   const filteredPayments = useMemo(() => {
     return payments.filter((payment) => {
       // Date range filter
-      const paymentDate = new Date(payment.created_at).toISOString().split("T")[0]
-      const dateMatch = (!startDate || paymentDate >= startDate) && (!endDate || paymentDate <= endDate)
+      const paymentDate = new Date(payment.created_at)
+        .toISOString()
+        .split("T")[0];
+      const dateMatch =
+        (!startDate || paymentDate >= startDate) &&
+        (!endDate || paymentDate <= endDate);
 
       // Status filter
-      let statusMatch = true
+      let statusMatch = true;
       if (paymentStatus) {
         // Map payment status to filter status
         const statusMap: { [key: string]: string } = {
           Approved: "full",
           Pending: "partial",
           Rejected: "rejected",
-        }
-        statusMatch = statusMap[payment.status] === paymentStatus
+        };
+        statusMatch = statusMap[payment.status] === paymentStatus;
       } else {
-        const activeFilters = []
-        if (rejectedChecked) activeFilters.push("Rejected")
-        if (partiallyPaidChecked) activeFilters.push("Pending")
-        if (completelyPaidChecked) activeFilters.push("Approved")
+        const activeFilters = [];
+        if (rejectedChecked) activeFilters.push("Rejected");
+        if (partiallyPaidChecked) activeFilters.push("Pending");
+        if (completelyPaidChecked) activeFilters.push("Approved");
 
         if (activeFilters.length > 0) {
-          statusMatch = activeFilters.includes(payment.status)
+          statusMatch = activeFilters.includes(payment.status);
         }
       }
 
       // Grade/Class filter
-      let classGradeMatch = true
+      let classGradeMatch = true;
       if (classFilter) {
-        classGradeMatch = `Grade ${payment.grade}` === classFilter
+        classGradeMatch = `Grade ${payment.grade}` === classFilter;
       } else if (gradeLevel) {
-        classGradeMatch = payment.grade === gradeLevel
+        classGradeMatch = payment.grade === gradeLevel;
       }
 
       // Amount filter
       const amountMatch =
         (minAmount === "" || payment.amount >= (minAmount as number)) &&
-        (maxAmount === "" || payment.amount <= (maxAmount as number))
+        (maxAmount === "" || payment.amount <= (maxAmount as number));
 
       // Parent name search
-      const parentName = getParentName(payment.parent_id)
-      const parentNameMatch = parentName.toLowerCase().includes(parentNameSearch.toLowerCase())
+      const parentName = getParentName(payment.parent_id);
+      const parentNameMatch = parentName
+        .toLowerCase()
+        .includes(parentNameSearch.toLowerCase());
 
-      return dateMatch && statusMatch && classGradeMatch && amountMatch && parentNameMatch
-    })
+      return (
+        dateMatch &&
+        statusMatch &&
+        classGradeMatch &&
+        amountMatch &&
+        parentNameMatch
+      );
+    });
   }, [
     payments,
     startDate,
@@ -226,46 +303,61 @@ function TreasurerDashboardContent() {
     parentNameSearch,
     classFilter,
     profiles,
-  ])
+  ]);
 
   const approvedByStudent = useMemo(() => {
-    const map = new Map<string, number>()
+    const map = new Map<string, number>();
     filteredPayments
       .filter((p) => p.status === "Approved")
       .forEach((p) => {
-        const k = `${p.student_name}|${p.grade}`
-        map.set(k, (map.get(k) || 0) + (Number(p.amount) || 0))
-      })
-    return map
-  }, [filteredPayments])
+        const k = `${p.student_name}|${p.grade}`;
+        map.set(k, (map.get(k) || 0) + (Number(p.amount) || 0));
+      });
+    return map;
+  }, [filteredPayments]);
 
   const stats = useMemo(() => {
-    const totalReceived = filteredPayments.filter((p) => p.status === "Approved").reduce((sum, p) => sum + p.amount, 0)
+    const totalReceived = filteredPayments
+      .filter((p) => p.status === "Approved")
+      .reduce((sum, p) => sum + p.amount, 0);
 
-    const totalToReceive = globalTotals ? globalTotals.to_receive : filteredPayments.reduce((sum, p) => sum + p.amount, 0)
+    const totalToReceive = globalTotals
+      ? globalTotals.to_receive
+      : filteredPayments.reduce((sum, p) => sum + p.amount, 0);
 
-    const approvedByStudent = new Map<string, number>()
-    filteredPayments.filter((p) => p.status === "Approved").forEach((p) => {
-      const k = `${p.student_name}|${p.grade}`
-      approvedByStudent.set(k, (approvedByStudent.get(k) || 0) + (Number(p.amount) || 0))
-    })
-    const studentsSet = new Set<string>()
-    filteredPayments.forEach((p) => studentsSet.add(`${p.student_name}|${p.grade}`))
+    const approvedByStudent = new Map<string, number>();
+    filteredPayments
+      .filter((p) => p.status === "Approved")
+      .forEach((p) => {
+        const k = `${p.student_name}|${p.grade}`;
+        approvedByStudent.set(
+          k,
+          (approvedByStudent.get(k) || 0) + (Number(p.amount) || 0)
+        );
+      });
+    const studentsSet = new Set<string>();
+    filteredPayments.forEach((p) =>
+      studentsSet.add(`${p.student_name}|${p.grade}`)
+    );
 
-    let fullPaymentsCount = 0
-    let partialPaymentsCount = 0
+    let fullPaymentsCount = 0;
+    let partialPaymentsCount = 0;
     studentsSet.forEach((k) => {
-      const due = feesMap.get(k) || 0
-      const paid = approvedByStudent.get(k) || 0
+      // k is "Name|Grade", split it to normalize name
+      const [name, grade] = k.split("|");
+      const normalizedKey = `${name.toLowerCase().trim()}|${grade}`;
+      const due = feesMap.get(normalizedKey) || 0;
+      const paid = approvedByStudent.get(k) || 0;
       if (due > 0) {
-        if (Math.abs(paid - due) < 0.01) fullPaymentsCount += 1
-        else if (paid > 0 && paid < due - 0.01) partialPaymentsCount += 1
+        if (Math.abs(paid - due) < 0.01) fullPaymentsCount += 1;
+        else if (paid > 0 && paid < due - 0.01) partialPaymentsCount += 1;
       }
-    })
+    });
 
-    const totalStudents = studentsSet.size
-    const studentsPaidInFull = fullPaymentsCount
-    const percentagePaidInFull = totalStudents > 0 ? (studentsPaidInFull / totalStudents) * 100 : 0
+    const totalStudents = studentsSet.size;
+    const studentsPaidInFull = fullPaymentsCount;
+    const percentagePaidInFull =
+      totalStudents > 0 ? (studentsPaidInFull / totalStudents) * 100 : 0;
 
     return {
       totalToReceive,
@@ -275,26 +367,33 @@ function TreasurerDashboardContent() {
       totalStudents,
       studentsPaidInFull,
       percentagePaidInFull,
-    }
-  }, [filteredPayments, globalTotals, feesMap])
+    };
+  }, [filteredPayments, globalTotals, feesMap]);
 
   const formatDate = (iso: string) => {
     try {
-      return new Date(iso).toISOString().split("T")[0]
+      return new Date(iso).toISOString().split("T")[0];
     } catch {
-      return iso
+      return iso;
     }
-  }
+  };
 
   const escapeCSV = (val: any) => {
-    const s = String(val ?? "")
-    const needsQuotes = /[",\n]/.test(s)
-    const escaped = s.replace(/"/g, '""')
-    return needsQuotes ? `"${escaped}"` : escaped
-  }
+    const s = String(val ?? "");
+    const needsQuotes = /[",\n]/.test(s);
+    const escaped = s.replace(/"/g, '""');
+    return needsQuotes ? `"${escaped}"` : escaped;
+  };
 
   const downloadCSV = () => {
-    const header = ["Student Name", "Class", "Parent Name", "Status", "Amount", "Date"]
+    const header = [
+      "Student Name",
+      "Class",
+      "Parent Name",
+      "Status",
+      "Amount",
+      "Date",
+    ];
     const rows = filteredPayments.map((p) => [
       escapeCSV(p.student_name),
       escapeCSV(p.grade),
@@ -302,40 +401,77 @@ function TreasurerDashboardContent() {
       escapeCSV(p.status),
       escapeCSV(p.amount.toFixed(2)),
       escapeCSV(formatDate(p.created_at)),
-    ])
-    const lines = [header.join(","), ...rows.map((r) => r.join(","))]
-    lines.push("")
-    const outstanding = globalTotals ? globalTotals.outstanding : Math.max(stats.totalToReceive - stats.totalReceived, 0)
-    lines.push(["Total To Receive", String(globalTotals ? globalTotals.to_receive.toFixed(2) : stats.totalToReceive.toFixed(2))].join(","))
-    lines.push(["Total Received", String(globalTotals ? globalTotals.received.toFixed(2) : stats.totalReceived.toFixed(2))].join(","))
-    lines.push(["Outstanding", String(outstanding.toFixed(2))].join(","))
-    lines.push(["Students Paid", `${stats.studentsPaidInFull}/${stats.totalStudents}`].join(","))
-    const csv = lines.join("\n")
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `treasurer-report-${new Date().toISOString().split("T")[0]}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
+    ]);
+    const lines = [header.join(","), ...rows.map((r) => r.join(","))];
+    lines.push("");
+    const outstanding = globalTotals
+      ? globalTotals.outstanding
+      : Math.max(stats.totalToReceive - stats.totalReceived, 0);
+    lines.push(
+      [
+        "Total To Receive",
+        String(
+          globalTotals
+            ? globalTotals.to_receive.toFixed(2)
+            : stats.totalToReceive.toFixed(2)
+        ),
+      ].join(",")
+    );
+    lines.push(
+      [
+        "Total Received",
+        String(
+          globalTotals
+            ? globalTotals.received.toFixed(2)
+            : stats.totalReceived.toFixed(2)
+        ),
+      ].join(",")
+    );
+    lines.push(["Outstanding", String(outstanding.toFixed(2))].join(","));
+    lines.push(
+      [
+        "Students Paid",
+        `${stats.studentsPaidInFull}/${stats.totalStudents}`,
+      ].join(",")
+    );
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `treasurer-report-${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const downloadPDF = () => {
-    const w = window.open("", "_blank")
-    if (!w) return
-    const title = `Treasurer Report - ${new Date().toLocaleDateString()}`
-    const outstanding = globalTotals ? globalTotals.outstanding : Math.max(stats.totalToReceive - stats.totalReceived, 0)
+    const w = window.open("", "_blank");
+    if (!w) return;
+    const title = `Treasurer Report - ${new Date().toLocaleDateString()}`;
+    const outstanding = globalTotals
+      ? globalTotals.outstanding
+      : Math.max(stats.totalToReceive - stats.totalReceived, 0);
     const summary = `
       <div style="margin-bottom:16px;">
         <h2 style="margin:0 0 8px 0;">Summary</h2>
-        <div>Total To Receive: MYR ${(globalTotals ? globalTotals.to_receive : stats.totalToReceive).toFixed(2)}</div>
-        <div>Total Received: MYR ${(globalTotals ? globalTotals.received : stats.totalReceived).toFixed(2)}</div>
+        <div>Total To Receive: MYR ${(globalTotals
+          ? globalTotals.to_receive
+          : stats.totalToReceive
+        ).toFixed(2)}</div>
+        <div>Total Received: MYR ${(globalTotals
+          ? globalTotals.received
+          : stats.totalReceived
+        ).toFixed(2)}</div>
         <div>Outstanding: MYR ${outstanding.toFixed(2)}</div>
-        <div>Students Paid: ${stats.studentsPaidInFull}/${stats.totalStudents}</div>
+        <div>Students Paid: ${stats.studentsPaidInFull}/${
+      stats.totalStudents
+    }</div>
       </div>
-    `
+    `;
     const tableHeader = `
       <tr>
         <th style="text-align:left;padding:8px;border-bottom:1px solid #ddd;">Student Name</th>
@@ -345,17 +481,33 @@ function TreasurerDashboardContent() {
         <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd;">Amount</th>
         <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd;">Date</th>
       </tr>
-    `
-    const tableRows = filteredPayments.map((p) => `
+    `;
+    const tableRows = filteredPayments
+      .map(
+        (p) => `
       <tr>
-        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(p.student_name)}</td>
-        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(p.grade)}</td>
-        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(getParentName(p.parent_id))}</td>
-        <td style="text-align:center;padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(p.status)}</td>
-        <td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0;">MYR ${p.amount.toFixed(2)}</td>
-        <td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0;">${formatDate(p.created_at)}</td>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(
+          p.student_name
+        )}</td>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(
+          p.grade
+        )}</td>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(
+          getParentName(p.parent_id)
+        )}</td>
+        <td style="text-align:center;padding:8px;border-bottom:1px solid #f0f0f0;">${escapeCSV(
+          p.status
+        )}</td>
+        <td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0;">MYR ${p.amount.toFixed(
+          2
+        )}</td>
+        <td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0;">${formatDate(
+          p.created_at
+        )}</td>
       </tr>
-    `).join("")
+    `
+      )
+      .join("");
     const html = `
       <!doctype html>
       <html>
@@ -377,46 +529,83 @@ function TreasurerDashboardContent() {
           </table>
         </body>
       </html>
-    `
-    w.document.open()
-    w.document.write(html)
-    w.document.close()
-    w.focus()
-    w.print()
-  }
+    `;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
+  };
 
   const toggleFilters = () => {
-    setFilterSectionVisible(!filterSectionVisible)
-  }
+    setFilterSectionVisible(!filterSectionVisible);
+  };
 
   const resetFilters = () => {
-    setStartDate("")
-    setEndDate("")
-    setPaymentStatus("")
-    setGradeLevel("")
-    setMinAmount("")
-    setMaxAmount("")
-    setRejectedChecked(false)
-    setPartiallyPaidChecked(false)
-    setCompletelyPaidChecked(false)
-    setParentNameSearch("")
-    setClassFilter("")
-  }
+    setStartDate("");
+    setEndDate("");
+    setPaymentStatus("");
+    setGradeLevel("");
+    setMinAmount("");
+    setMaxAmount("");
+    setRejectedChecked(false);
+    setPartiallyPaidChecked(false);
+    setCompletelyPaidChecked(false);
+    setParentNameSearch("");
+    setClassFilter("");
+  };
 
   const renderPaymentOverview = () => {
-    const itemsToShow = showAll ? filteredPayments : filteredPayments.slice(0, 5)
+    const itemsToShow = showAll
+      ? filteredPayments
+      : filteredPayments.slice(0, 5);
     return itemsToShow.map((p) => (
       <tr key={p.id} className="hover:bg-slate-50">
-        <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-slate-900">{p.student_name}</td>
-        <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-500">Grade {p.grade}</td>
-        <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-500">{getParentName(p.parent_id)}</td>
+        <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-slate-900">
+          {p.student_name}
+        </td>
+        <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-500">
+          Grade {p.grade}
+        </td>
+        <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-500">
+          {getParentName(p.parent_id)}
+        </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm text-center">
-          <span className={`status-pill status-${p.status.toLowerCase()}`}>{p.status}</span>
+          <span className={`status-pill status-${p.status.toLowerCase()}`}>
+            {p.status}
+          </span>
         </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-red-600 text-right">
           {(() => {
-            const due = feesMap.get(`${p.student_name}|${p.grade}`) || 0
-            return `MYR ${due.toFixed(2)}`
+            const normalizedName = p.student_name.toLowerCase().trim();
+            const normalizedKey = `${normalizedName}|${p.grade}`;
+            const normalizedKeyWithGradePrefix = `${normalizedName}|grade ${p.grade
+              .toLowerCase()
+              .trim()}`;
+            // If p.grade already has "Grade " prefix, we try to strip it too?
+            // Actually, p.grade in screenshot is "Grade 2 Merbau"
+            // So we need to match it against "2 Merbau" in feesMap
+
+            // Try 1: Exact match "muntasir|Grade 2 Merbau" (unlikely to exist in feesMap if fees use "2 Merbau")
+            let due = feesMap.get(normalizedKey) || 0;
+
+            // Try 2: Lowercase match "muntasir|grade 2 merbau"
+            if (!due) due = feesMap.get(normalizedKey.toLowerCase());
+
+            // Try 3: Strip "Grade " prefix if present
+            if (!due && p.grade.toLowerCase().startsWith("grade ")) {
+              const strippedGrade = p.grade
+                .toLowerCase()
+                .replace("grade ", "")
+                .trim(); // "2 merbau"
+              const keyStripped = `${normalizedName}|${strippedGrade}`;
+              due = feesMap.get(keyStripped) || 0;
+            }
+
+            // Try 4: Name Only Fallback
+            if (!due) due = feesMap.get(`NAME_ONLY:${normalizedName}`) || 0;
+
+            return `MYR ${due.toFixed(2)}`;
           })()}
         </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-green-600 text-right">
@@ -424,26 +613,44 @@ function TreasurerDashboardContent() {
         </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-amber-500 text-right">
           {(() => {
-            const key = `${p.student_name}|${p.grade}`
-            const due = feesMap.get(key) || 0
-            const paidApproved = approvedByStudent.get(key) || 0
-            const remaining = Math.max(due - paidApproved, 0)
-            return `MYR ${remaining.toFixed(2)}`
+            const key = `${p.student_name}|${p.grade}`;
+
+            // Re-calculate due (same logic as above)
+            const normalizedName = p.student_name.toLowerCase().trim();
+            const normalizedKey = `${normalizedName}|${p.grade}`;
+            let due = feesMap.get(normalizedKey) || 0;
+            if (!due) due = feesMap.get(normalizedKey.toLowerCase());
+            if (!due && p.grade.toLowerCase().startsWith("grade ")) {
+              const strippedGrade = p.grade
+                .toLowerCase()
+                .replace("grade ", "")
+                .trim();
+              const keyStripped = `${normalizedName}|${strippedGrade}`;
+              due = feesMap.get(keyStripped) || 0;
+            }
+            if (!due) due = feesMap.get(`NAME_ONLY:${normalizedName}`) || 0;
+
+            const paidApproved = approvedByStudent.get(key) || 0;
+            const remaining = Math.max(due - paidApproved, 0);
+            return `MYR ${remaining.toFixed(2)}`;
           })()}
         </td>
       </tr>
-    ))
-  }
+    ));
+  };
 
   const renderRecentPayments = () => {
     const sortedData = [...filteredPayments].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    )
-    const itemsToShow = sortedData.slice(0, 6)
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    const itemsToShow = sortedData.slice(0, 6);
 
     return itemsToShow.map((p) => (
       <tr key={p.id} className="hover:bg-slate-50">
-        <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-slate-900">{p.student_name}</td>
+        <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-slate-900">
+          {p.student_name}
+        </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-red-600 text-right">
           MYR {p.amount.toFixed(2)}
         </td>
@@ -451,7 +658,9 @@ function TreasurerDashboardContent() {
           {new Date(p.created_at).toLocaleDateString()}
         </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm text-center">
-          <span className={`status-pill status-${p.status.toLowerCase()}`}>{p.status}</span>
+          <span className={`status-pill status-${p.status.toLowerCase()}`}>
+            {p.status}
+          </span>
         </td>
         <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-right">
           <Link
@@ -462,13 +671,17 @@ function TreasurerDashboardContent() {
           </Link>
         </td>
       </tr>
-    ))
-  }
+    ));
+  };
 
   const pieChartData = [
     { name: "Paid in Full", value: stats.studentsPaidInFull, color: "#10b981" },
-    { name: "Not Paid in Full", value: stats.totalStudents - stats.studentsPaidInFull, color: "#e2e8f0" },
-  ]
+    {
+      name: "Not Paid in Full",
+      value: stats.totalStudents - stats.studentsPaidInFull,
+      color: "#e2e8f0",
+    },
+  ];
 
   return (
     <div className="relative flex size-full min-h-screen flex-col group/design-root overflow-x-hidden bg-slate-100">
@@ -477,7 +690,9 @@ function TreasurerDashboardContent() {
         <main className="px-6 md:px-10 lg:px-16 xl:px-24 flex flex-1 justify-center py-8">
           <div className="layout-content-container flex flex-col w-full max-w-6xl">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-              <h1 className="text-slate-900 text-3xl font-bold leading-tight">Treasurer Dashboard</h1>
+              <h1 className="text-slate-900 text-3xl font-bold leading-tight">
+                Treasurer Dashboard
+              </h1>
               <div className="flex items-center gap-4">
                 <button
                   onClick={toggleFilters}
@@ -511,7 +726,10 @@ function TreasurerDashboardContent() {
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="startDate">
+                    <label
+                      className="text-sm font-medium text-slate-700"
+                      htmlFor="startDate"
+                    >
                       Date Range
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -532,7 +750,10 @@ function TreasurerDashboardContent() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="paymentStatus">
+                    <label
+                      className="text-sm font-medium text-slate-700"
+                      htmlFor="paymentStatus"
+                    >
                       Payment Status
                     </label>
                     <select
@@ -548,7 +769,10 @@ function TreasurerDashboardContent() {
                     </select>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="gradeLevel">
+                    <label
+                      className="text-sm font-medium text-slate-700"
+                      htmlFor="gradeLevel"
+                    >
                       Grade Level
                     </label>
                     <select
@@ -566,7 +790,10 @@ function TreasurerDashboardContent() {
                     </select>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="minAmount">
+                    <label
+                      className="text-sm font-medium text-slate-700"
+                      htmlFor="minAmount"
+                    >
                       Amount Range
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -576,7 +803,13 @@ function TreasurerDashboardContent() {
                         id="minAmount"
                         placeholder="Min"
                         value={minAmount}
-                        onChange={(e) => setMinAmount(e.target.value === "" ? "" : Number.parseFloat(e.target.value))}
+                        onChange={(e) =>
+                          setMinAmount(
+                            e.target.value === ""
+                              ? ""
+                              : Number.parseFloat(e.target.value)
+                          )
+                        }
                       />
                       <input
                         type="number"
@@ -584,7 +817,13 @@ function TreasurerDashboardContent() {
                         id="maxAmount"
                         placeholder="Max"
                         value={maxAmount}
-                        onChange={(e) => setMaxAmount(e.target.value === "" ? "" : Number.parseFloat(e.target.value))}
+                        onChange={(e) =>
+                          setMaxAmount(
+                            e.target.value === ""
+                              ? ""
+                              : Number.parseFloat(e.target.value)
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -603,7 +842,9 @@ function TreasurerDashboardContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
               <div className="flex flex-col gap-2 rounded-xl p-6 bg-white shadow-sm border border-slate-200">
                 <div className="flex items-center justify-between">
-                  <p className="text-slate-600 text-sm font-medium">Total Amount to Receive</p>
+                  <p className="text-slate-600 text-sm font-medium">
+                    Total Amount to Receive
+                  </p>
                   <span className="text-slate-500">
                     <DollarSign className="w-5 h-5" />
                   </span>
@@ -614,33 +855,47 @@ function TreasurerDashboardContent() {
               </div>
               <div className="flex flex-col gap-2 rounded-xl p-6 bg-white shadow-sm border border-slate-200">
                 <div className="flex items-center justify-between">
-                  <p className="text-slate-600 text-sm font-medium">Total Amount Received</p>
+                  <p className="text-slate-600 text-sm font-medium">
+                    Total Amount Received
+                  </p>
                   <span className="text-green-500">
                     <ArrowDown className="w-5 h-5" />
                   </span>
                 </div>
-                <p className="text-slate-900 text-3xl font-bold tracking-tight">MYR {stats.totalReceived.toFixed(2)}</p>
+                <p className="text-slate-900 text-3xl font-bold tracking-tight">
+                  MYR {stats.totalReceived.toFixed(2)}
+                </p>
               </div>
               <div className="flex flex-col gap-2 rounded-xl p-6 bg-white shadow-sm border border-slate-200">
                 <div className="flex items-center justify-between">
-                  <p className="text-slate-600 text-sm font-medium">Partial Payments</p>
+                  <p className="text-slate-600 text-sm font-medium">
+                    Partial Payments
+                  </p>
                   <span className="text-amber-500">
                     <Clock className="h-5 w-5" />
                   </span>
                 </div>
-                <p className="text-slate-900 text-3xl font-bold tracking-tight">{stats.partialPaymentsCount}</p>
+                <p className="text-slate-900 text-3xl font-bold tracking-tight">
+                  {stats.partialPaymentsCount}
+                </p>
               </div>
               <div className="flex flex-col gap-2 rounded-xl p-6 bg-white shadow-sm border border-slate-200">
                 <div className="flex items-center justify-between">
-                  <p className="text-slate-600 text-sm font-medium">Full Payments</p>
+                  <p className="text-slate-600 text-sm font-medium">
+                    Full Payments
+                  </p>
                   <span className="text-green-500">
                     <CheckCircle className="h-5 w-5" />
                   </span>
                 </div>
-                <p className="text-slate-900 text-3xl font-bold tracking-tight">{stats.fullPaymentsCount}</p>
+                <p className="text-slate-900 text-3xl font-bold tracking-tight">
+                  {stats.fullPaymentsCount}
+                </p>
               </div>
               <div className="flex flex-col gap-2 rounded-xl p-6 bg-white shadow-sm border border-slate-200">
-                <p className="text-slate-600 text-sm font-medium mb-2">Students Paid in Full</p>
+                <p className="text-slate-600 text-sm font-medium mb-2">
+                  Students Paid in Full
+                </p>
                 <div className="flex items-center gap-4">
                   <ResponsiveContainer width={80} height={80}>
                     <PieChart>
@@ -674,7 +929,9 @@ function TreasurerDashboardContent() {
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-                <h2 className="text-slate-900 text-xl font-semibold leading-tight">Student Payment Overview</h2>
+                <h2 className="text-slate-900 text-xl font-semibold leading-tight">
+                  Student Payment Overview
+                </h2>
                 <div className="flex items-center gap-2">
                   <Search className="text-slate-400 w-5 h-5" />
                   <input
@@ -717,7 +974,9 @@ function TreasurerDashboardContent() {
                       className="h-4 w-4 text-[var(--primary-color-treasurer-dashboard)] border-slate-300 rounded focus:ring-[var(--primary-color-treasurer-dashboard)] focus:ring-opacity-50"
                       type="checkbox"
                       checked={partiallyPaidChecked}
-                      onChange={(e) => setPartiallyPaidChecked(e.target.checked)}
+                      onChange={(e) =>
+                        setPartiallyPaidChecked(e.target.checked)
+                      }
                     />
                     <span className="ml-2">Partially Paid</span>
                   </label>
@@ -726,7 +985,9 @@ function TreasurerDashboardContent() {
                       className="h-4 w-4 text-[var(--primary-color-treasurer-dashboard)] border-slate-300 rounded focus:ring-[var(--primary-color-treasurer-dashboard)] focus:ring-opacity-50"
                       type="checkbox"
                       checked={completelyPaidChecked}
-                      onChange={(e) => setCompletelyPaidChecked(e.target.checked)}
+                      onChange={(e) =>
+                        setCompletelyPaidChecked(e.target.checked)
+                      }
                     />
                     <span className="ml-2">Completely Paid</span>
                   </label>
@@ -785,7 +1046,9 @@ function TreasurerDashboardContent() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h2 className="text-slate-900 text-xl font-semibold leading-tight mb-6">Recent Payments</h2>
+              <h2 className="text-slate-900 text-xl font-semibold leading-tight mb-6">
+                Recent Payments
+              </h2>
               <div className="overflow-x-auto @container">
                 <table className="min-w-full divide-y divide-slate-200">
                   <thead className="bg-slate-50">
@@ -825,5 +1088,5 @@ function TreasurerDashboardContent() {
         </main>
       </div>
     </div>
-  )
+  );
 }
