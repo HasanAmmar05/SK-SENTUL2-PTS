@@ -194,7 +194,7 @@ export async function addClassAccount(className: string, password?: string) {
     // Validate Input
     if (!className) return { error: "Class name is required" };
 
-    const email = `class${className.toLowerCase()}@sksentul2.com`;
+    const email = `class${className.toLowerCase().replace(/\s+/g, "")}@sksentul2.com`;
     const fullName = `Class ${className} Teacher`;
 
     // Check existing

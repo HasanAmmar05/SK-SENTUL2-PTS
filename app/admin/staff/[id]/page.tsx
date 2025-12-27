@@ -59,18 +59,24 @@ export default function EditStaffPage() {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const availableClasses = [
-    "1A",
-    "1B",
-    "2A",
-    "2B",
-    "3A",
-    "3B",
-    "4A",
-    "4B",
-    "5A",
-    "5B",
-    "6A",
-    "6B",
+    "1 Merbau",
+    "1 Jati",
+    "1 Cengal",
+    "2 Merbau",
+    "2 Jati",
+    "2 Cengal",
+    "3 Merbau",
+    "3 Jati",
+    "3 Cengal",
+    "4 Merbau",
+    "4 Jati",
+    "4 Cengal",
+    "5 Merbau",
+    "5 Jati",
+    "5 Cengal",
+    "6 Merbau",
+    "6 Jati",
+    "6 Cengal",
   ];
 
   useEffect(() => {

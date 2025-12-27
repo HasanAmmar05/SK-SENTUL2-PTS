@@ -127,43 +127,45 @@ export default function UnifiedLoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col group/design-root overflow-x-hidden bg-slate-100">
-      <div className="flex h-full grow flex-col">
-        <MainHeader userType="auth" activePath="/login" />
-        <main className="flex flex-1 items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-          <div className="w-full max-w-md space-y-8 bg-white p-8 sm:p-10 rounded-xl shadow-2xl">
-            <div>
-              <h2 className="text-center text-3xl font-bold tracking-tight text-slate-900">
-                Welcome Back
-              </h2>
-              <p className="mt-2 text-center text-sm text-slate-600">
-                Sign in to access your account
-              </p>
-            </div>
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      <MainHeader userType="auth" activePath="/login" />
+      <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md space-y-8 bg-white p-8 sm:p-10 rounded-2xl shadow-sm border border-slate-200">
+          <div>
+            <h2 className="text-center text-3xl font-bold tracking-tight text-slate-900">
+              Welcome Back
+            </h2>
+            <p className="mt-2 text-center text-sm text-slate-500">
+              Sign in to access your account
+            </p>
+          </div>
 
-            {error && (
-              <div className="rounded-md bg-red-50 p-4 border border-red-200">
-                <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-red-400" />
-                  <div className="ml-3">
-                    <p className="text-sm text-red-800">{error}</p>
-                  </div>
+          {error && (
+            <div className="rounded-xl bg-red-50 p-4 border border-red-100">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-red-800">{error}</p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-4">
               <div>
                 <label
-                  className="block text-sm font-medium text-slate-700 pb-1.5"
+                  className="block text-sm font-medium text-slate-700 mb-1.5"
                   htmlFor="identifier"
                 >
                   IC Number or Email
                 </label>
-                <div className="flex items-center gap-2">
-                  <Badge className="text-slate-400 w-5 h-5 flex-shrink-0" />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Badge className="text-slate-400 w-5 h-5" />
+                  </div>
                   <input
-                    className="form-input block w-full rounded-md border-slate-300 bg-slate-50 py-2 pr-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    className="block w-full pl-10 pr-3 py-2.5 rounded-lg border-slate-300 bg-slate-50 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition-colors duration-200"
                     id="identifier"
                     name="identifier"
                     placeholder="IC Number (Parents) or Email (Staff)"
@@ -173,22 +175,24 @@ export default function UnifiedLoginPage() {
                     onChange={(e) => setIdentifier(e.target.value)}
                   />
                 </div>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1.5 text-xs text-slate-500">
                   Parents: Enter 12-digit IC. Staff: Enter Email.
                 </p>
               </div>
 
               <div>
                 <label
-                  className="block text-sm font-medium text-slate-700 pb-1.5"
+                  className="block text-sm font-medium text-slate-700 mb-1.5"
                   htmlFor="password"
                 >
                   Password
                 </label>
-                <div className="flex items-center gap-2">
-                  <Lock className="text-slate-400 w-5 h-5 flex-shrink-0" />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="text-slate-400 w-5 h-5" />
+                  </div>
                   <input
-                    className="form-input block w-full rounded-md border-slate-300 bg-slate-50 py-2 pr-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    className="block w-full pl-10 pr-3 py-2.5 rounded-lg border-slate-300 bg-slate-50 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition-colors duration-200"
                     id="password"
                     name="password"
                     placeholder="Enter your password"
@@ -199,60 +203,67 @@ export default function UnifiedLoginPage() {
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center justify-between">
-                <div className="text-sm">
-                  <Link
-                    className="font-medium text-blue-600 hover:text-blue-500"
-                    href="/forgot-password"
-                  >
-                    Forgot your password?
-                  </Link>
-                </div>
-              </div>
-
-              <div>
-                <button
-                  className="flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                  type="submit"
-                  disabled={isLoading}
+            <div className="flex items-center justify-end">
+              <div className="text-sm">
+                <Link
+                  className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                  href="/forgot-password"
                 >
-                  {isLoading ? "Signing in..." : "Sign In"}
-                </button>
+                  Forgot your password?
+                </Link>
               </div>
-            </form>
-            <div>
+            </div>
+
+            <div className="space-y-3">
               <button
-                className="flex w-full justify-center rounded-md border border-transparent bg-orange-500 py-3 px-4 text-sm font-semibold text-white shadow-sm  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full justify-center rounded-lg border border-transparent bg-blue-600 py-2.5 px-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
                 type="submit"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Signing in...
+                  </span>
+                ) : "Sign In"}
+              </button>
+
+              <button
+                className="flex w-full justify-center rounded-lg border border-transparent bg-orange-500 py-2.5 px-4 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all duration-200"
+                type="button"
                 onClick={() => router.push("/teacher/login")}
               >
-                {"Teacher Login"}
+                Teacher Login
               </button>
             </div>
+          </form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-2 text-slate-500">
-                  New parent?
-                </span>
-              </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
             </div>
-
-            <p className="text-center text-sm text-slate-600">
-              <Link
-                className="font-medium text-blue-600 hover:text-blue-500"
-                href="/register"
-              >
-                Register as a parent
-              </Link>
-            </p>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-slate-500">
+                New parent?
+              </span>
+            </div>
           </div>
-        </main>
-      </div>
+
+          <p className="text-center text-sm text-slate-600">
+            <Link
+              className="font-semibold text-blue-600 hover:text-blue-500 transition-colors"
+              href="/register"
+            >
+              Register as a parent
+            </Link>
+          </p>
+        </div>
+      </main>
     </div>
   );
 }

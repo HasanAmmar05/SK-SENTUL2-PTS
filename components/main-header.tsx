@@ -26,29 +26,23 @@ export function MainHeader({ userType, activePath }: MainHeaderProps) {
       return [
         { name: "Dashboard", href: "/parent/dashboard" },
         { name: "Payments", href: "/parent/payment" },
-        { name: "Reports", href: "#" },
-        { name: "Settings", href: "#" },
       ]
     } else if (type === "treasurer") {
       return [
         { name: "Dashboard", href: "/treasurer/dashboard" },
         { name: "Pending Payments", href: "/treasurer/pending-payments" },
         { name: "Historical Payments", href: "/treasurer/historical-payments" },
-        { name: "Settings", href: "#" },
       ]
     } else if (type === "teacher") {
       return [
         { name: "Dashboard", href: "/teacher/dashboard" },
         { name: "Payments", href: "/teacher/payments" },
-        { name: "Reports", href: "#" },
-        { name: "Settings", href: "#" },
+
       ]
     } else if (type === "admin") {
       return [
         { name: "Dashboard", href: "/admin/dashboard" },
         { name: "Staff Management", href: "/admin/staff-management" },
-        { name: "Reports", href: "#" },
-        { name: "Settings", href: "#" },
       ]
     }
     return []
