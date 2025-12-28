@@ -216,14 +216,27 @@ export default function MakePaymentPage() {
         return;
       }
 
+      if (!proofFile) {
+        alert("Please upload a payment proof.");
+        setLoading(false);
+        return;
+      }
+
       const proofUrl = await uploadProof(); // use the top one
+
+      if (!proofUrl) {
+        alert("Failed to upload payment proof. Please try again.");
+        setLoading(false);
+        return;
+      }
+
       console.log("Returned proofUrl:", proofUrl);
       const payload = entriesToInsert.map((e) => ({
         parent_id: e.parent_id,
         student_name: e.student_name,
         grade: e.student_grade,
         amount: e.amount,
-        proof_url: proofUrl || null,
+        proof_url: proofUrl,
         created_at: new Date().toISOString(),
       }));
 
@@ -321,7 +334,9 @@ export default function MakePaymentPage() {
         </div>
 
         <div className="mt-6">
-          <p className="font-medium mb-2">Payment Proof (Optional)</p>
+          <p className="font-medium mb-2">
+            Payment Proof <span className="text-red-500">*</span>
+          </p>
           <div className="border-2 border-dashed rounded-lg p-6 text-center">
             <input
               type="file"
