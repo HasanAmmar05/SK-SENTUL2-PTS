@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import Link from "next/link";
 import { TreasurerHeader } from "@/components/treasurer-header";
+import {MainHeader} from "@/components/main-header";
 import { Filter, Plus, ArrowRight } from "lucide-react";
 import AuthWrapper from "@/components/auth-wrapper";
 
@@ -42,7 +43,7 @@ export default function PendingPaymentsPage() {
   return (
     <AuthWrapper>
       <div className="min-h-screen bg-gray-50">
-        <TreasurerHeader />
+        <MainHeader userType="treasurer" activePath="/treasurer/pending-payments" />
 
         <main className="max-w-7xl mx-auto px-6 py-8">
           {/* Header */}

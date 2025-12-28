@@ -239,12 +239,9 @@ export function MainHeader({ userType, activePath }: MainHeaderProps) {
                 </span>
               </button>
             )}
-            {userType === "treasurer" && activePath === "/treasurer/pending-payments" && (
-              <button className="relative p-2 rounded-full hover:bg-slate-100 transition-colors text-[var(--secondary-color-treasurer-pending)]">
-                <Bell className="w-6 h-6" />
-                <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-              </button>
-            )}
+            {userType === "treasurer" && activePath === "/treasurer/pending-payments"
+              
+            }
             
           </div>
 
