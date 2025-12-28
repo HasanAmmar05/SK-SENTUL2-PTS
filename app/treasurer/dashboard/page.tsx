@@ -63,6 +63,9 @@ function TreasurerDashboardContent() {
     outstanding: number;
   } | null>(null);
   const [feesMap, setFeesMap] = useState<Map<string, number>>(new Map());
+  const [feesMapById, setFeesMapById] = useState<Map<string, number>>(
+    new Map()
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -157,21 +160,28 @@ function TreasurerDashboardContent() {
 
   useEffect(() => {
     const fetchFeesAssignments = async () => {
-      // Fetch fees assignments and join with parent_students to get student name
+      // Fetch fees assignments and join with parent_students to get student name and ID
       const { data } = await supabase
         .from("fees_assignments")
         .select(
-          "student_id, amount_due, grade, parent_students!fees_assignments_student_id_fkey(student_name)"
+          "student_id, amount_due, grade, parent_students!fees_assignments_student_id_fkey(id, student_name, student_grade)"
         )
         .eq("status", "Active");
 
       const map = new Map<string, number>();
+      const mapById = new Map<string, number>();
 
       if (!data) return;
 
       console.log("Fees Assignments Raw:", data); // Debug log
 
       data.forEach((r: any) => {
+        // Map by Student ID (Most accurate)
+        if (r.student_id) {
+          const current = mapById.get(r.student_id) || 0;
+          mapById.set(r.student_id, current + (Number(r.amount_due) || 0));
+        }
+
         // We have two strategies to match:
         // 1. By student name + grade (for older payments)
         // 2. By exact student_id (if payments had it, but they don't seem to)
@@ -184,7 +194,7 @@ function TreasurerDashboardContent() {
 
           // Key 1: Full Name + Full Grade
           const key1 = `${normalizedName}|${normalizedGrade}`;
-          map.set(key1, Number(r.amount_due) || 0);
+          map.set(key1, (map.get(key1) || 0) + (Number(r.amount_due) || 0));
 
           // Key 2: Full Name + Short Grade (e.g., "1")
           const gradeParts = normalizedGrade.split(" ");
@@ -193,7 +203,7 @@ function TreasurerDashboardContent() {
             const key2 = `${normalizedName}|${shortGrade}`;
             // Only set if not already present (prefer full grade)
             if (!map.has(key2)) {
-              map.set(key2, Number(r.amount_due) || 0);
+              map.set(key2, (map.get(key2) || 0) + (Number(r.amount_due) || 0));
             }
           }
 
@@ -203,7 +213,7 @@ function TreasurerDashboardContent() {
           const key3 = `${normalizedName}|${gradeWithPrefix}`;
           // e.g., "muntasir|grade 2 merbau"
           if (!map.has(key3)) {
-            map.set(key3, Number(r.amount_due) || 0);
+            map.set(key3, (map.get(key3) || 0) + (Number(r.amount_due) || 0));
           }
 
           // Key 4: Name Only (Last Resort - if unique enough)
@@ -213,7 +223,7 @@ function TreasurerDashboardContent() {
           // If multiple students have same name, we might overwrite, which is a risk
           // But usually better than showing 0.00
           if (!map.has(key4)) {
-            map.set(key4, Number(r.amount_due) || 0);
+            map.set(key4, (map.get(key4) || 0) + (Number(r.amount_due) || 0));
           }
 
           // DEBUG: Log keys being set
@@ -222,6 +232,7 @@ function TreasurerDashboardContent() {
       });
 
       setFeesMap(map);
+      setFeesMapById(mapById);
     };
     fetchFeesAssignments();
   }, []);
@@ -325,49 +336,119 @@ function TreasurerDashboardContent() {
       ? globalTotals.to_receive
       : filteredPayments.reduce((sum, p) => sum + p.amount, 0);
 
-    const approvedByStudent = new Map<string, number>();
-    filteredPayments
-      .filter((p) => p.status === "Approved")
-      .forEach((p) => {
-        const k = `${p.student_name}|${p.grade}`;
-        approvedByStudent.set(
-          k,
-          (approvedByStudent.get(k) || 0) + (Number(p.amount) || 0)
-        );
-      });
-    const studentsSet = new Set<string>();
-    filteredPayments.forEach((p) =>
-      studentsSet.add(`${p.student_name}|${p.grade}`)
-    );
+    // Group approved payments by student Name+Grade (or ID if we had it easily)
+    // We'll iterate through all unique students we know about (from fees + payments)
+
+    // 1. Collect all students involved
+    const allStudentKeys = new Set<string>();
+
+    // From fees
+    Array.from(feesMap.keys()).forEach((k) => {
+      if (!k.startsWith("NAME_ONLY:")) allStudentKeys.add(k);
+    });
+
+    // From payments
+    filteredPayments.forEach((p) => {
+      allStudentKeys.add(`${p.student_name.toLowerCase().trim()}|${p.grade}`);
+    });
 
     let fullPaymentsCount = 0;
     let partialPaymentsCount = 0;
-    studentsSet.forEach((k) => {
-      // k is "Name|Grade" (from payments, which might have "Grade " prefix)
-      const [name, grade] = k.split("|");
 
+    // We need to group by unique student entity, not just keys
+    // The keys in allStudentKeys might overlap (e.g. "ali|1" and "ali|1 merbau")
+    // This is tricky. Let's try to aggregate by Name first.
+
+    const studentStats = new Map<string, { due: number; paid: number }>();
+
+    // Helper to get canonical name
+    const getCanonical = (name: string, grade: string) => {
+      return `${name.toLowerCase().trim()}|${grade.toLowerCase().trim()}`;
+    };
+
+    // 1. Sum up Dues per Student (using feesMapById if possible, else robust matching)
+    // Actually, feesMapById is the most reliable source for Total Due per student.
+    // But we need to link it to the payments.
+    // Payments don't have student_id easily accessible here without joining parent_students again.
+    // But we have parent_students data in fees fetch.
+
+    // Let's rely on robust string matching like we did in Teacher Dashboard.
+
+    // Iterate unique students found in filteredPayments (these are the ones we are reporting on)
+    // OR should we include students who haven't paid anything?
+    // The dashboard usually shows stats for the filtered set.
+
+    const uniqueStudents = new Set<string>();
+    filteredPayments.forEach((p) =>
+      uniqueStudents.add(`${p.student_name}|${p.grade}`)
+    );
+
+    // Also include students from feesMap who might not have paid yet (if filters allow?)
+    // If filters are active (e.g. grade level), we should probably include unpaid students too?
+    // But filteredPayments is already filtered.
+    // If "Pending" filter is on, we only see pending.
+
+    // Let's stick to calculating stats based on the "filteredPayments" view + corresponding fees.
+
+    uniqueStudents.forEach((studentKey) => {
+      const [name, grade] = studentKey.split("|");
       const normalizedName = name.toLowerCase().trim();
 
-      // Calculate Due (Using same robust logic as table)
+      // Calculate Total Paid for this student (from filtered list or global list?)
+      // "Students Paid in Full" usually implies global status, not just filtered status.
+      // But the table shows filtered rows.
+      // Teacher dashboard logic: Compare Total Lifetime Paid vs Total Lifetime Due.
+      // Here filteredPayments respects date range.
+      // If I filter by "Last Month", "Paid in Full" might be misleading if I only paid half last month.
+      // Usually "Paid in Full" status refers to the student's overall standing.
+
+      // However, if the user filters by date, they might want to see who paid in full *within that period*?
+      // Unlikely. "Paid in Full" is a status.
+      // Let's assume we want to know if the student has zero outstanding balance.
+
+      // We need ALL approved payments for these students to determine if they are paid in full.
+      // filteredPayments might be a subset.
+      // We have `payments` state which has ALL payments (unfiltered).
+
+      const allStudentPayments = payments.filter(
+        (p) =>
+          p.status === "Approved" &&
+          p.student_name.toLowerCase().trim() === normalizedName
+        // We should also check grade, but loosely
+      );
+
+      const totalPaid = allStudentPayments.reduce((sum, p) => {
+        const rowGrade = p.grade;
+        // Robust Grade Match
+        let isMatch = false;
+        if (rowGrade === grade) isMatch = true;
+        else if (grade.includes(rowGrade) || rowGrade.includes(grade))
+          isMatch = true;
+        else if (rowGrade.split(" ")[0] === grade.split(" ")[0]) isMatch = true;
+
+        return isMatch ? sum + p.amount : sum;
+      }, 0);
+
+      // Calculate Total Due
+      // Try exact match first
       const normalizedKey = `${normalizedName}|${grade}`;
       let due = feesMap.get(normalizedKey) || 0;
+
+      // Try other keys
       if (!due) due = feesMap.get(normalizedKey.toLowerCase());
       if (!due && grade.toLowerCase().startsWith("grade ")) {
-        const strippedGrade = grade.toLowerCase().replace("grade ", "").trim();
-        const keyStripped = `${normalizedName}|${strippedGrade}`;
-        due = feesMap.get(keyStripped) || 0;
+        const stripped = grade.toLowerCase().replace("grade ", "").trim();
+        due = feesMap.get(`${normalizedName}|${stripped}`) || 0;
       }
       if (!due) due = feesMap.get(`NAME_ONLY:${normalizedName}`) || 0;
 
-      const paid = approvedByStudent.get(k) || 0;
-
       if (due > 0) {
-        if (Math.abs(paid - due) < 0.01) fullPaymentsCount += 1;
-        else if (paid > 0 && paid < due - 0.01) partialPaymentsCount += 1;
+        if (totalPaid >= due - 0.01) fullPaymentsCount++;
+        else if (totalPaid > 0) partialPaymentsCount++;
       }
     });
 
-    const totalStudents = studentsSet.size;
+    const totalStudents = uniqueStudents.size;
     const studentsPaidInFull = fullPaymentsCount;
     const percentagePaidInFull =
       totalStudents > 0 ? (studentsPaidInFull / totalStudents) * 100 : 0;
@@ -381,7 +462,7 @@ function TreasurerDashboardContent() {
       studentsPaidInFull,
       percentagePaidInFull,
     };
-  }, [filteredPayments, globalTotals, feesMap]);
+  }, [filteredPayments, globalTotals, feesMap, payments]);
 
   const formatDate = (iso: string) => {
     try {
