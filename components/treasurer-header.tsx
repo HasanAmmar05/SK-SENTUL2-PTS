@@ -18,16 +18,21 @@ export function TreasurerHeader() {
     { href: '/treasurer/dashboard', label: 'Dashboard' },
     { href: '/treasurer/pending-payments', label: 'Pending Payments' },
     { href: '/treasurer/historical-payments', label: 'Historical Payments' },
-    { href: '/treasurer/settings', label: 'Settings' },
   ];
 
   return (
     <header className="flex items-center justify-between bg-white px-8 py-3 shadow-sm border-b border-gray-200">
       {/* Left: Logo and title */}
       <div className="flex items-center gap-2">
-        <div className="w-4 h-4 bg-blue-600 rounded-full" />
-        <span className="font-bold text-gray-900 text-lg">
-          SK SENTUL <span className="text-blue-700">2</span>
+        <Image
+          src="/School_Logo.png"
+          alt="SK SENTUL 2 Logo"
+          width={60}
+          height={60}
+          
+        />
+        <span className="font-bold text-gray-900 text-2xl">
+          SK SENTUL <span>2</span>
         </span>
       </div>
 
@@ -60,13 +65,7 @@ export function TreasurerHeader() {
             Logout
           </button>
 
-          <Image
-            src="/profile-placeholder.jpg"
-            alt="Treasurer Avatar"
-            width={32}
-            height={32}
-            className="rounded-full border border-gray-300"
-          />
+          
         </div>
       </div>
     </header>
