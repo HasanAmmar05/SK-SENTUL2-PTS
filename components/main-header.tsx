@@ -245,35 +245,7 @@ export function MainHeader({ userType, activePath }: MainHeaderProps) {
                 <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
               </button>
             )}
-            {profileImage && (
-              <Image
-                src={profileImage || "/placeholder.svg"}
-                alt="Profile"
-                width={40}
-                height={40}
-                className={`bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 ${
-                  userType === "treasurer" && activePath === "/treasurer/login"
-                    ? "border-[var(--primary-color-treasurer-login)]"
-                    : userType === "treasurer" && activePath === "/treasurer/payment-details"
-                      ? "border-[var(--primary-color-treasurer-details)]"
-                      : userType === "parent" && activePath === "/parent/payment"
-                        ? "ml-4 border-slate-200 shadow-sm"
-                        : userType === "parent" && activePath === "/parent/dashboard"
-                          ? "border-[var(--border-color-parent-info)]"
-                          : userType === "treasurer" && activePath === "/treasurer/dashboard"
-                            ? "border-slate-200 hover:border-[var(--primary-color-treasurer-dashboard)] transition-all"
-                            : userType === "treasurer" && activePath === "/treasurer/pending-payments"
-                              ? "border-slate-200"
-                              : userType === "treasurer" && activePath === "/treasurer/historical-payments"
-                                ? "border-[var(--primary-color-historical)]"
-                                : userType === "teacher"
-                                  ? "border-[var(--border-color-teacher)]"
-                                  : userType === "admin"
-                                    ? "border-[var(--border-color-admin)]"
-                                    : ""
-                }`}
-              />
-            )}
+            
           </div>
 
           <div className="sm:hidden">
