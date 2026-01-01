@@ -256,10 +256,7 @@ export default function HistoricalPaymentsPage() {
                       <Search className="w-5 h-5 text-[var(--text-secondary-historical)]" />
                     </div>
                   </div>
-                  <button className="flex items-center gap-2 bg-[var(--primary-color-historical)] hover:bg-[var(--primary-hover-color-historical)] text-white text-sm font-medium px-4 py-2.5 rounded-lg shadow-sm transition-colors">
-                    <Plus className="w-5 h-5" />
-                    New Payment
-                  </button>
+                  
                 </div>
               </div>
               <div className="mb-6 px-1">
