@@ -55,12 +55,7 @@ export default function PendingPaymentsPage() {
               <button className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-md text-base hover:bg-gray-100 transition">
                 <Filter size={18} /> Filter
               </button>
-              <Link
-                href="/payments/new"
-                className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-md text-base font-medium hover:bg-blue-700 transition"
-              >
-                <Plus size={18} /> New Payment
-              </Link>
+              
             </div>
           </div>
 
