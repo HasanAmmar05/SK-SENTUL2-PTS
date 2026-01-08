@@ -135,42 +135,24 @@ export default function ParentDashboard() {
           };
         });
 
-        // 4️ Apply sibling rule — first = 90, others = 50, with January yearly increment and carry-over logic
+        // 4️ Apply sibling rule — first = 90, others = 50
+        // Fee is based on is_primary_child status in database:
+        // - Primary child (first registered): RM 90/year
+        // - Secondary children: RM 50/year
         const allStudents = mappedStudents;
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth(); // 0 = January
-        const isAfterJanuary = currentMonth >= 0; // always true, but we’ll use month check for yearly logic
-
-        // Determine how many years have passed since start (e.g., 2025 baseline)
-        const BASE_YEAR = 2025;
-        const yearDiff = currentYear - BASE_YEAR;
 
         // Base tuition per sibling position
         allStudents.forEach((student, index) => {
-          //  Base amount for this student
-          let baseFee = index === 0 ? 90 : 50;
+          // Base amount for this student (matches fees_assignments.amount_due in database)
+          // First child = 90, others = 50
+          let yearlyFee = index === 0 ? 90 : 50;
 
-          //  Yearly increment (every January increases the fee)
-          let yearlyFee = baseFee + yearDiff * baseFee; // e.g., 2026 → +90 or +50
-
-          // Skip if grade > 6
+          // Skip if grade > 6 (graduated students)
           if (parseInt(student.grade) > 6) yearlyFee = 0;
 
-          //  Calculate total paid so far
+          // Calculate remaining: fee minus approved payments
           const totalPaid = student.totalPaid;
-          let remaining = yearlyFee - totalPaid;
-
-          //  Handle carry-over after January
-          // If unpaid balance remains from previous year → add it to this year's fee
-          if (remaining > 0 && currentMonth === 0) {
-            remaining = yearlyFee + remaining; // add unpaid
-          }
-
-          // 🔹 If overpaid → subtract extra
-          if (remaining < 0 && currentMonth === 0) {
-            remaining = yearlyFee + remaining; // subtract overpayment
-          }
+          const remaining = yearlyFee - totalPaid;
 
           student.remaining = Math.max(remaining, 0);
         });
