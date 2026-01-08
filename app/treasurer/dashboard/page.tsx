@@ -875,12 +875,37 @@ function TreasurerDashboardContent() {
                       value={gradeLevel}
                       onChange={(e) => setGradeLevel(e.target.value)}
                     >
-                      <option value="">All Grades</option>
-                      <option value="1">Grade 1</option>
-                      <option value="2">Grade 2</option>
-                      <option value="3">Grade 3</option>
-                      <option value="4">Grade 4</option>
-                      <option value="5">Grade 5</option>
+                      <option value="">All Classes</option>
+                      <optgroup label="Grade 1">
+                        <option value="1 Merbau">1 Merbau</option>
+                        <option value="1 Jati">1 Jati</option>
+                        <option value="1 Cengal">1 Cengal</option>
+                      </optgroup>
+                      <optgroup label="Grade 2">
+                        <option value="2 Merbau">2 Merbau</option>
+                        <option value="2 Jati">2 Jati</option>
+                        <option value="2 Cengal">2 Cengal</option>
+                      </optgroup>
+                      <optgroup label="Grade 3">
+                        <option value="3 Merbau">3 Merbau</option>
+                        <option value="3 Jati">3 Jati</option>
+                        <option value="3 Cengal">3 Cengal</option>
+                      </optgroup>
+                      <optgroup label="Grade 4">
+                        <option value="4 Merbau">4 Merbau</option>
+                        <option value="4 Jati">4 Jati</option>
+                        <option value="4 Cengal">4 Cengal</option>
+                      </optgroup>
+                      <optgroup label="Grade 5">
+                        <option value="5 Merbau">5 Merbau</option>
+                        <option value="5 Jati">5 Jati</option>
+                        <option value="5 Cengal">5 Cengal</option>
+                      </optgroup>
+                      <optgroup label="Grade 6">
+                        <option value="6 Merbau">6 Merbau</option>
+                        <option value="6 Jati">6 Jati</option>
+                        <option value="6 Cengal">6 Cengal</option>
+                      </optgroup>
                     </select>
                   </div>
                   <div className="flex flex-col gap-2">
